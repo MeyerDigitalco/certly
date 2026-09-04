@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-ink: #0f172a;
+  --brand-slate: #64748b;
+  --brand-line: #e2e8f0;
+  --brand-cream: #faf7f2;
+  --brand-red: #dc2626;
+  --brand-red-deep: #991b1b;
+  --brand-charcoal: #1e293b;
+}
+html, body { background: var(--brand-cream); color: var(--brand-ink); }
+body { font-family: 'Inter', system-ui, sans-serif; }
