@@ -1,0 +1,141 @@
+import type { Metadata } from "next";
+import { SITE } from "@/lib/site";
+import LegalShell from "@/components/LegalShell";
+
+export const metadata: Metadata = {
+  title: "Terms of service",
+  description: "The terms on which Certly is provided to South African businesses.",
+  alternates: { canonical: `${SITE.domain}/terms` },
+  robots: { index: true, follow: true },
+};
+
+export default function TermsPage() {
+  return (
+    <LegalShell
+      sectionNo="SEC 07"
+      sectionTitle="Terms"
+      kicker="Agreement between you and us"
+      title="Terms of service"
+    >
+      <h3>1. Who is agreeing</h3>
+      <p>
+        These terms are between {SITE.legalEntity}, which operates Certly, and the
+        business that opens a workspace. If you accept these terms on behalf of a
+        business you confirm that you are authorised to bind it.
+      </p>
+
+      <h3>2. What Certly is</h3>
+      <p>
+        Certly is a record keeping tool. It stores employee training and
+        certification records that you supply, shows you what has expired or is
+        about to, holds certificate documents you attach, and assembles those
+        records into document packs on request.
+      </p>
+
+      <h3>3. What Certly is not</h3>
+      <p>
+        Certly does not certify compliance with the Occupational Health and Safety
+        Act 85 of 1993, the Mine Health and Safety Act 29 of 1996, the Construction
+        Regulations, or any client, mine or industry standard. It does not provide
+        legal, safety or medical advice, and it does not replace a competent person,
+        a registered safety practitioner, or any appointment required by law.
+      </p>
+      <p>
+        Documents Certly drafts are drafts. Every pack must be reviewed and signed
+        by your own appointed person before it is submitted to anyone. You remain
+        solely responsible for the accuracy, completeness and legality of anything
+        you submit, and for the safety of your people.
+      </p>
+
+      <h3>4. Your account</h3>
+      <p>
+        You are responsible for the accuracy of the records you load and for who you
+        invite into your workspace. Owners and administrators can read, change and
+        delete every record in the workspace. Keep credentials confidential and tell
+        us promptly if you believe an account has been compromised.
+      </p>
+
+      <h3>5. Your data stays yours</h3>
+      <p>
+        You own the records you load. We claim no ownership of them. We process them
+        only to run the service for you, as set out in our privacy policy, where we
+        act as your operator under POPIA. Where your organisation requires a written
+        operator agreement under sections 20 and 21 of POPIA, ask us and we will
+        conclude one with you.
+      </p>
+
+      <h3>6. Trial and fees</h3>
+      <p>
+        New workspaces get a 14 day trial with no card required. After that the
+        subscription is R999 per month for a register of up to 50 people, plus R10
+        per month for each additional person on the register. Prices are in South
+        African rand and exclude VAT. Fees are billed monthly in advance and are not
+        refundable for a part month.
+      </p>
+      <p>
+        We may change prices on 30 days written notice to the email address on the
+        account. If you do not accept a price change you may cancel before it takes
+        effect.
+      </p>
+
+      <h3>7. Acceptable use</h3>
+      <p>
+        Do not load personal information you have no lawful basis to hold, attempt
+        to reach another workspace&rsquo;s data, probe or overload the service,
+        resell access without our written agreement, or upload malicious files.
+      </p>
+
+      <h3>8. Availability</h3>
+      <p>
+        We work to keep Certly available but we do not promise uninterrupted
+        service. We may take the service down for maintenance, and we will give
+        notice where we reasonably can. We do not offer a service level agreement on
+        the standard plan.
+      </p>
+
+      <h3>9. Liability</h3>
+      <p>
+        To the fullest extent the law allows, our total liability to you arising out
+        of or in connection with this agreement, whether in contract, delict or
+        otherwise, is limited to the fees you paid us in the three months before the
+        event that gave rise to the claim.
+      </p>
+      <p>
+        We are not liable for loss of profit, loss of contract, penalties imposed by
+        a client or regulator, the cost of a crew being turned away or stood down, or
+        any indirect or consequential loss. Nothing in these terms excludes liability
+        that cannot lawfully be excluded, including under the Consumer Protection Act
+        68 of 2008 where it applies to you.
+      </p>
+
+      <h3>10. Suspension and cancellation</h3>
+      <p>
+        You may cancel at any time from your workspace settings and the cancellation
+        takes effect at the end of the paid month. We may suspend a workspace for
+        non payment after written notice, or immediately where use threatens the
+        security or integrity of the service.
+      </p>
+
+      <h3>11. Getting your data out</h3>
+      <p>
+        You can export your register and download your certificate files at any time
+        while the workspace is active. After cancellation we keep the workspace
+        recoverable for 30 days, then delete it. Export before you cancel.
+      </p>
+
+      <h3>12. Changes to these terms</h3>
+      <p>
+        We may update these terms. Material changes will be notified by email to
+        account holders at least 30 days before they take effect. Continuing to use
+        Certly after that date means you accept the updated terms.
+      </p>
+
+      <h3>13. Governing law</h3>
+      <p>
+        These terms are governed by the law of the Republic of South Africa, and the
+        courts of South Africa have jurisdiction. Notices to us go to {SITE.email}.
+        Notices to you go to the email address on the account.
+      </p>
+    </LegalShell>
+  );
+}

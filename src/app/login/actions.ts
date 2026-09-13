@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,7 +21,7 @@ export async function signIn(
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "");
+  const next = safeRedirectPath(String(formData.get("next") ?? ""), "");
 
   if (!email || !password) {
     return { ok: false, error: "Enter your email and password." };

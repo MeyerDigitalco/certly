@@ -1,7 +1,8 @@
 export type UUID = string;
 
 export type Role = "owner" | "admin" | "viewer";
-export type Plan = "trial" | "starter" | "growth" | "scale" | "enterprise";
+export type Plan = "trial" | "standard";
+export type SubscriptionStatus = "none" | "active" | "past_due" | "cancelled";
 
 export interface Organisation {
   id: UUID;
@@ -11,8 +12,30 @@ export interface Organisation {
   plan: Plan;
   trial_ends_at: string;
   due_soon_days: number;
+  subscription_status: SubscriptionStatus;
+  payfast_token: string | null;
+  current_period_end: string | null;
+  billing_email: string | null;
+  billed_seats: number | null;
+  billed_amount_cents: number | null;
+  subscribed_at: string | null;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface BillingEvent {
+  id: UUID;
+  organisation_id: UUID;
+  source: "payfast" | "manual";
+  event_type: string;
+  pf_payment_id: string | null;
+  payfast_token: string | null;
+  amount_cents: number | null;
+  seats: number | null;
+  status: string | null;
+  raw: Record<string, unknown> | null;
+  at: string;
 }
 export interface OrgMember {
   organisation_id: UUID;
@@ -25,24 +48,60 @@ export interface Profile {
   full_name: string | null;
   created_at: string;
 }
+export type IdType = "sa_id" | "passport" | "work_permit" | "asylum" | "other";
+
 export interface Employee {
   id: UUID;
   organisation_id: UUID;
   surname: string;
   names: string;
-  sa_id: string;
+  id_number: string;
+  id_type: IdType;
+  id_country: string | null;
+  id_expiry: string | null;
+  id_file_path: string | null;
+  id_certified_at: string | null;
   site: string | null;
   superior: string | null;
   designation: string | null;
   created_at: string;
   updated_at: string;
 }
+export type CompanyDocumentCategory =
+  | "policy"
+  | "registration"
+  | "tax"
+  | "coida"
+  | "insurance"
+  | "bbbee"
+  | "organogram"
+  | "appointment"
+  | "procedure"
+  | "other";
+
+export interface CompanyDocument {
+  id: UUID;
+  organisation_id: UUID;
+  category: CompanyDocumentCategory;
+  title: string;
+  file_path: string | null;
+  issued_at: string | null;
+  expires_at: string | null;
+  sort_order: number;
+  created_by: UUID | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrainingType {
   id: UUID;
   organisation_id: UUID;
   name: string;
   sort_order: number;
   active: boolean;
+}
+export interface TrainingTypeWithUsage extends TrainingType {
+  certification_count: number;
 }
 export interface Certification {
   id: UUID;
@@ -107,7 +166,8 @@ export interface RegisterRow {
   employee_id: UUID;
   surname: string;
   names: string;
-  sa_id: string;
+  id_number: string;
+  id_type: IdType;
   site: string | null;
   superior: string | null;
   training_type: string;

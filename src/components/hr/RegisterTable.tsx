@@ -7,7 +7,7 @@ import StatusChip from "./StatusChip";
 function fmtDate(iso: string | null): string {
   if (!iso) return "-";
   const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y}`;
+  return `${d}/${m}/${y}`;
 }
 
 interface Props {
@@ -38,7 +38,7 @@ export default function RegisterTable({
   const columns: Array<{ key: RegisterSortKey | null; label: string }> = [
     { key: "surname", label: "Surname" },
     { key: "names", label: "Names" },
-    { key: "sa_id", label: "SA ID" },
+    { key: "id_number", label: "ID number" },
     { key: "site", label: "Site" },
     { key: "training_type", label: "Training" },
     { key: "training_date", label: "Training date" },
@@ -112,7 +112,7 @@ export default function RegisterTable({
                   </span>
                 </Td>
                 <Td>{r.names}</Td>
-                <Td className="font-mono text-xs">{r.sa_id}</Td>
+                <Td className="font-mono text-xs">{r.id_number}</Td>
                 <Td>{r.site ?? "-"}</Td>
                 <Td className="whitespace-normal">{r.training_type}</Td>
                 <Td>{fmtDate(r.training_date)}</Td>

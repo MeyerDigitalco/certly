@@ -1,12 +1,14 @@
 import Link from "next/link";
 import {
-  ArrowLeft, ShieldCheck, KeyRound, Users, Building,
+  ArrowLeft, ShieldCheck, KeyRound, Users, Building, GraduationCap, Download, CreditCard,
 } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
-import { isOwner } from "@/lib/auth/roles";
+import { isOwner, isAdmin } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTrainingTypesWithUsage } from "@/lib/hr/queries";
 import AdminRoster from "./AdminRoster";
+import TrainingTypesManager from "./TrainingTypesManager";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -21,6 +23,8 @@ export default async function SettingsPage({
   const { org: slug } = await params;
   const ctx = await requireTenant(slug);
 
+  const trainingTypes = await getTrainingTypesWithUsage(ctx.org.id);
+
   const supabase: any = await createClient();
   const { data: rawMembers } = await supabase
     .from("org_members")
@@ -34,6 +38,20 @@ export default async function SettingsPage({
   for (const u of (userList?.users ?? []) as Array<{ id: string; email: string | null }>) {
     if (u.email) idToEmail.set(u.id, u.email);
   }
+  const { data: rawInvitations } = await supabase
+    .from("invitations")
+    .select("id, email, role, expires_at")
+    .eq("organisation_id", ctx.org.id)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false });
+  const invitations = (rawInvitations ?? []) as Array<{
+    id: string;
+    email: string;
+    role: "owner" | "admin" | "viewer";
+    expires_at: string;
+  }>;
+
   const members = (rawMembers ?? []).map((m: any) => ({
     ...m,
     email: idToEmail.get(m.user_id) ?? "(unknown)",
@@ -55,8 +73,14 @@ export default async function SettingsPage({
       <Section icon={Building} title="Workspace" subtitle="Your organisation on Certly.">
         <Kv label="Name" value={ctx.org.name} />
         <Kv label="URL" value={`certly.co.za/${ctx.org.slug}`} mono />
-        <Kv label="Plan" value={ctx.org.plan} />
-        <Kv label="Trial ends" value={new Date(ctx.org.trial_ends_at).toLocaleDateString()} />
+        {isOwner(ctx.role) ? (
+          <div className="pt-3 border-t border-[var(--brand-line)]">
+            <Link href={`/${slug}/hr/billing`}
+              className="inline-flex items-center gap-2 border border-[var(--brand-line)] hover:border-[var(--brand-ink)] px-4 py-2 rounded-md text-sm font-bold transition">
+              <CreditCard size={12} /> Plan and billing
+            </Link>
+          </div>
+        ) : null}
       </Section>
 
       <Section icon={ShieldCheck} title="You" subtitle="Currently signed-in.">
@@ -70,10 +94,44 @@ export default async function SettingsPage({
         </div>
       </Section>
 
+      <Section icon={Download}
+        title="Export"
+        subtitle="Your register and your files leave in a format you can open without us. Comma separated, opens in Excel.">
+        <div className="flex flex-wrap gap-2">
+          <a href={`/${slug}/hr/export?data=register`}
+            className="inline-flex items-center gap-2 border border-[var(--brand-line)] hover:border-[var(--brand-ink)] px-4 py-2.5 rounded-md text-sm font-bold transition">
+            <Download size={14} /> Register
+          </a>
+          <a href={`/${slug}/hr/export?data=employees`}
+            className="inline-flex items-center gap-2 border border-[var(--brand-line)] hover:border-[var(--brand-ink)] px-4 py-2.5 rounded-md text-sm font-bold transition">
+            <Download size={14} /> Employees
+          </a>
+          <a href={`/${slug}/hr/export?data=documents`}
+            className="inline-flex items-center gap-2 border border-[var(--brand-line)] hover:border-[var(--brand-ink)] px-4 py-2.5 rounded-md text-sm font-bold transition">
+            <Download size={14} /> Company documents
+          </a>
+        </div>
+        <p className="mt-3 text-xs text-[var(--brand-slate)]">
+          Attached certificates and identity copies are not in the export. Build a
+          safety file pack to take those with you.
+        </p>
+      </Section>
+
+      <Section icon={GraduationCap}
+        title="Training types"
+        subtitle="The catalogue this workspace files certifications against. Twenty four are seeded when a workspace is created. Add your own, reorder them, hide the ones you do not use, and delete the ones nobody has filed against.">
+        <TrainingTypesManager
+          orgId={ctx.org.id}
+          slug={slug}
+          canWrite={isAdmin(ctx.role)}
+          types={trainingTypes}
+        />
+      </Section>
+
       <Section icon={Users}
         title="Admin roster"
         subtitle={isOwner(ctx.role)
-          ? "Add, remove, and re-role the people who can access this workspace. Owners have full control including billing. Admins manage employees and certificates. Viewers can only read."
+          ? "Invite, remove, and re-role the people who can access this workspace. An invitation becomes access only when that person signs in and accepts it. Owners have full control including billing. Admins manage employees and certificates. Viewers can only read."
           : "The people who can access this workspace. Only the owner can add or remove admins."}>
         <AdminRoster
           orgSlug={slug}
@@ -81,6 +139,7 @@ export default async function SettingsPage({
           currentUserId={ctx.userId}
           isOwner={isOwner(ctx.role)}
           members={members}
+          invitations={invitations}
         />
       </Section>
     </div>

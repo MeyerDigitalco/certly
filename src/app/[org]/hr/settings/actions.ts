@@ -1,6 +1,5 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,6 +17,24 @@ function generateTempPassword(): string {
   return `${pick(adjectives)}-${pick(nouns)}-${String(Math.floor(1000 + Math.random() * 9000))}`;
 }
 
+/**
+ * True when this workspace is the only one the user belongs to.
+ *
+ * An owner may reset a password only for an account that exists solely
+ * because they created it. Anyone who belongs to a second workspace has a
+ * credential that is not this owner's to change, and changing it would lock
+ * them out of somebody else's data.
+ */
+async function isSoleMembership(userId: string, orgId: string): Promise<boolean> {
+  const admin: any = createAdminClient();
+  const { data } = await admin
+    .from("org_members")
+    .select("organisation_id")
+    .eq("user_id", userId);
+  const rows = (data ?? []) as Array<{ organisation_id: string }>;
+  return rows.length === 1 && rows[0].organisation_id === orgId;
+}
+
 async function assertOwner(orgId: string): Promise<string | null> {
   const supabase: any = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,58 +47,10 @@ async function assertOwner(orgId: string): Promise<string | null> {
 }
 
 /**
- * Add a new member. If the email already has a Certly account, we just
- * add the membership row. Otherwise we create the auth user with a
- * generated temp password and add the membership. Either way, we return
- * the temp password so the owner can share it.
+ * addMember was removed. It created an auth account, or attached an existing
+ * one, without the person ever agreeing. See invite-actions.ts: access now
+ * begins when the invitee signs in as the invited address and accepts.
  */
-export async function addMember(formData: FormData): Promise<Result> {
-  const orgId = String(formData.get("orgId") ?? "");
-  const role = String(formData.get("role") ?? "admin") as "admin" | "viewer" | "owner";
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!z.string().email().safeParse(email).success) {
-    return { ok: false, error: "Enter a valid email address." };
-  }
-  if (!["admin","viewer","owner"].includes(role)) {
-    return { ok: false, error: "Invalid role." };
-  }
-  const err = await assertOwner(orgId);
-  if (err) return { ok: false, error: err };
-
-  const admin: any = createAdminClient();
-  const password = generateTempPassword();
-  const { data: userList } = await admin.auth.admin.listUsers({ page: 1, perPage: 500 });
-  const existing = (userList?.users ?? []).find((u: any) =>
-    (u.email ?? "").toLowerCase() === email);
-
-  let userId: string;
-  if (existing) {
-    // Existing Certly user: reset their password (so the owner has one to share).
-    const { error } = await admin.auth.admin.updateUserById(existing.id, {
-      password, email_confirm: true,
-      user_metadata: { ...(existing.user_metadata ?? {}), has_password: false },
-    });
-    if (error) return { ok: false, error: error.message };
-    userId = existing.id;
-  } else {
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email, password, email_confirm: true,
-      user_metadata: { has_password: false },
-    });
-    if (error || !created.user) return { ok: false, error: error?.message ?? "Could not create user." };
-    userId = created.user.id;
-  }
-
-  const { error: memErr } = await admin.from("org_members").upsert({
-    organisation_id: orgId, user_id: userId, role,
-  }, { onConflict: "organisation_id,user_id" });
-  if (memErr) return { ok: false, error: memErr.message };
-
-  const { data: org } = await admin.from("organisations").select("slug").eq("id", orgId).single();
-  if (org?.slug) revalidatePath(`/${org.slug}/hr/settings`);
-
-  return { ok: true, email, password };
-}
 
 export async function removeMember(formData: FormData): Promise<SimpleResult> {
   const orgId = String(formData.get("orgId") ?? "");
@@ -153,6 +122,14 @@ export async function resetMemberPassword(formData: FormData): Promise<Result> {
   const { data: cur } = await admin.from("org_members").select("user_id")
     .eq("organisation_id", orgId).eq("user_id", userId).maybeSingle();
   if (!cur) return { ok: false, error: "That user isn't a member of this workspace." };
+
+  if (!(await isSoleMembership(userId, orgId))) {
+    return {
+      ok: false,
+      error:
+        "This person belongs to another Certly workspace, so their password is not yours to reset. Ask them to use Forgot your password on the sign in page.",
+    };
+  }
 
   const { data: userList } = await admin.auth.admin.listUsers({ page: 1, perPage: 500 });
   const target = (userList?.users ?? []).find((u: any) => u.id === userId);

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Trash2, MapPin } from "lucide-react";
 import type { Employee } from "@/lib/types/database";
 import { bulkDeleteEmployees } from "@/lib/hr/mutations";
+import { idTypeLabel } from "@/lib/validation/identification";
 
 export default function EmployeeListClient({
   employees,
@@ -124,7 +125,7 @@ export default function EmployeeListClient({
               ) : null}
               <Th>Surname</Th>
               <Th>Names</Th>
-              <Th>SA ID</Th>
+              <Th>ID number</Th>
               <Th>Site</Th>
               <Th>Superior</Th>
               <Th>Designation</Th>
@@ -158,7 +159,14 @@ export default function EmployeeListClient({
                   </Link>
                 </Td>
                 <Td>{e.names}</Td>
-                <Td className="font-mono text-xs">{e.sa_id}</Td>
+                <Td className="font-mono text-xs">
+                  {e.id_number}
+                  {e.id_type !== "sa_id" ? (
+                    <span className="ml-2 font-sans not-italic text-[9px] uppercase tracking-wider font-bold text-[var(--brand-slate)] border border-[var(--brand-line)] rounded px-1 py-0.5">
+                      {idTypeLabel(e.id_type)}
+                    </span>
+                  ) : null}
+                </Td>
                 <Td>
                   {e.site ? (
                     <span className="inline-flex items-center gap-1">

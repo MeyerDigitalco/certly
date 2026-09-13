@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { CertlyMark } from "@/components/CertlyMark";
 import SignupForm from "./SignupForm";
 
 export const metadata = { title: "Create your workspace" };
@@ -9,7 +9,7 @@ export default function SignupPage() {
     <main className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
         <Link href="/" className="flex items-center gap-2 justify-center">
-          <Flame className="text-[var(--brand-red)]" size={22} />
+          <CertlyMark size={26} />
           <span className="font-black text-xl tracking-tight">Certly</span>
         </Link>
         <div className="mt-6 bg-white border border-[var(--brand-line)] rounded-2xl p-8">

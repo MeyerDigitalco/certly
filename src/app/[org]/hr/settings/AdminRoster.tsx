@@ -1,10 +1,11 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Trash2, KeyRound, Copy, Check, ShieldCheck } from "lucide-react";
+import { UserPlus, Trash2, KeyRound, Copy, Check, ShieldCheck, Clock, X } from "lucide-react";
 import {
-  addMember, removeMember, changeMemberRole, resetMemberPassword,
+  removeMember, changeMemberRole, resetMemberPassword,
 } from "./actions";
+import { inviteMember, revokeInvitation } from "./invite-actions";
 
 type Member = {
   user_id: string;
@@ -13,14 +14,22 @@ type Member = {
   created_at: string;
 };
 
+export type Invitation = {
+  id: string;
+  email: string;
+  role: "owner" | "admin" | "viewer";
+  expires_at: string;
+};
+
 export default function AdminRoster({
-  orgSlug, orgId, currentUserId, isOwner, members,
+  orgSlug, orgId, currentUserId, isOwner, members, invitations,
 }: {
   orgSlug: string;
   orgId: string;
   currentUserId: string;
   isOwner: boolean;
   members: Member[];
+  invitations: Invitation[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -28,8 +37,10 @@ export default function AdminRoster({
   const [ok, setOk] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "viewer">("admin");
-  const [tempPw, setTempPw] = useState<{ email: string; password: string } | null>(null);
+  const [tempPw, setTempPw] = useState<{ email: string; password: string | null } | null>(null);
+  const [invited, setInvited] = useState<{ email: string; link: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   function flash(setter: (v: string | null) => void, v: string) {
     setter(v);
@@ -39,18 +50,40 @@ export default function AdminRoster({
   function addNew(e: React.FormEvent) {
     e.preventDefault();
     if (!newEmail.trim()) return;
-    setError(null); setOk(null); setTempPw(null);
+    setError(null); setOk(null); setTempPw(null); setInvited(null);
     const fd = new FormData();
     fd.set("orgId", orgId);
     fd.set("email", newEmail);
     fd.set("role", newRole);
     startTransition(async () => {
-      const r = await addMember(fd);
+      const r = await inviteMember(fd);
       if (!r.ok) { flash(setError, r.error); return; }
-      setTempPw({ email: r.email, password: r.password });
+      setInvited({ email: r.email, link: r.link });
       setNewEmail("");
       router.refresh();
     });
+  }
+
+  function withdraw(invitationId: string, email: string) {
+    if (!confirm(`Withdraw the invitation to ${email}?`)) return;
+    setError(null); setOk(null);
+    const fd = new FormData();
+    fd.set("orgId", orgId); fd.set("invitationId", invitationId);
+    startTransition(async () => {
+      const r = await revokeInvitation(fd);
+      if (!r.ok) return flash(setError, r.error);
+      flash(setOk, "Invitation withdrawn.");
+      router.refresh();
+    });
+  }
+
+  async function copyLink() {
+    if (!invited) return;
+    try {
+      await navigator.clipboard.writeText(invited.link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch { /* ignore */ }
   }
 
   function remove(userId: string, email: string) {
@@ -95,6 +128,7 @@ export default function AdminRoster({
 
   async function copyPw() {
     if (!tempPw) return;
+    if (!tempPw.password) return;
     try { await navigator.clipboard.writeText(tempPw.password); setCopied(true); setTimeout(() => setCopied(false), 2500); }
     catch { /* ignore */ }
   }
@@ -122,7 +156,7 @@ export default function AdminRoster({
           </div>
           <button type="submit" disabled={pending || !newEmail}
             className="inline-flex items-center gap-2 bg-[var(--brand-red)] hover:bg-[var(--brand-red-deep)] disabled:opacity-60 text-white px-4 py-2 rounded-md text-sm font-bold transition">
-            <UserPlus size={12} /> {pending ? "Adding..." : "Add member"}
+            <UserPlus size={12} /> {pending ? "Inviting..." : "Send invitation"}
           </button>
         </form>
       ) : null}
@@ -134,7 +168,7 @@ export default function AdminRoster({
         <p className="bg-green-50 border border-green-200 text-green-800 rounded-md px-3 py-2 text-sm">{ok}</p>
       ) : null}
 
-      {tempPw ? (
+      {tempPw && tempPw.password ? (
         <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 space-y-3">
           <p className="text-sm text-emerald-900">
             <strong>Temporary password for {tempPw.email}.</strong> Share it via a call or in person.
@@ -147,6 +181,52 @@ export default function AdminRoster({
               {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {invited ? (
+        <div className="bg-sky-50 border border-sky-300 rounded-xl p-4 space-y-3">
+          <p className="text-sm text-sky-900">
+            <strong>Invitation created for {invited.email}.</strong> Send them
+            this link. They join only once they sign in as that address and
+            accept, so nobody gets access to your register without agreeing to
+            it. The link works for fourteen days and this is the only time it
+            is shown.
+          </p>
+          <div className="flex items-center gap-2 bg-white border border-sky-300 rounded-md px-3 py-2">
+            <span className="font-mono text-xs flex-1 select-all break-all">{invited.link}</span>
+            <button type="button" onClick={copyLink}
+              className="inline-flex items-center gap-1 text-xs font-bold border border-sky-400 text-sky-800 hover:bg-sky-100 px-2 py-1 rounded transition shrink-0">
+              {linkCopied ? <Check size={12} /> : <Copy size={12} />} {linkCopied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {invitations.length > 0 ? (
+        <div className="border border-[var(--brand-line)] rounded-xl overflow-hidden">
+          <p className="bg-[var(--brand-cream)] px-4 py-2 text-[10px] uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+            Waiting to be accepted
+          </p>
+          <ul className="divide-y divide-[var(--brand-line)]">
+            {invitations.map(inv => (
+              <li key={inv.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
+                <Clock size={12} className="text-[var(--brand-slate)] shrink-0" />
+                <span className="font-mono text-xs flex-1 truncate">{inv.email}</span>
+                <span className="text-xs text-[var(--brand-slate)]">{inv.role}</span>
+                <span className="text-[10px] font-mono text-[var(--brand-slate)] hidden sm:inline">
+                  expires {new Date(inv.expires_at).toLocaleDateString("en-ZA")}
+                </span>
+                {isOwner ? (
+                  <button onClick={() => withdraw(inv.id, inv.email)} disabled={pending}
+                    className="p-1 rounded text-[var(--brand-slate)] hover:text-red-700 transition"
+                    aria-label="Withdraw">
+                    <X size={14} />
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

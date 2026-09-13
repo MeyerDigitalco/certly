@@ -1,0 +1,169 @@
+"use server";
+
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  newInviteToken,
+  hashInviteToken,
+  inviteLink,
+  normaliseInviteEmail,
+} from "@/lib/invitations";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+export type InviteResult =
+  | { ok: true; email: string; link: string }
+  | { ok: false; error: string };
+
+export type SimpleResult = { ok: true } | { ok: false; error: string };
+
+async function assertOwner(orgId: string): Promise<
+  { error: string } | { userId: string }
+> {
+  if (!orgId) return { error: "Missing workspace." };
+  const supabase: any = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  const { data: mem } = await supabase
+    .from("org_members")
+    .select("role")
+    .eq("organisation_id", orgId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!mem || mem.role !== "owner") {
+    return { error: "Only the owner can invite people to this workspace." };
+  }
+  return { userId: user.id };
+}
+
+async function originFromRequest(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  if (!host) return "";
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") || host.startsWith("127.0.0.1")
+      ? "http"
+      : "https");
+  return `${proto}://${host}`;
+}
+
+/**
+ * Invite someone to this workspace.
+ *
+ * Creates a claim on an email address, not a membership. Nothing changes for
+ * the invitee until they sign in as that address and accept, which is the
+ * whole point: this register holds other people's identity numbers and
+ * nobody should be handed access to it without agreeing to hold it.
+ *
+ * The raw token is returned once, in the link. Only its hash is stored, so
+ * this response is the only chance to copy it.
+ */
+export async function inviteMember(
+  formData: FormData,
+): Promise<InviteResult> {
+  const orgId = String(formData.get("orgId") ?? "");
+  const role = String(formData.get("role") ?? "admin");
+  const email = normaliseInviteEmail(String(formData.get("email") ?? ""));
+
+  const guard = await assertOwner(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  if (!z.string().email().max(254).safeParse(email).success) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+  if (!["owner", "admin", "viewer"].includes(role)) {
+    return { ok: false, error: "Invalid role." };
+  }
+
+  const admin: any = createAdminClient();
+
+  const { data: existingUsers } = await admin.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  const existing = ((existingUsers?.users ?? []) as Array<{
+    id: string;
+    email: string | null;
+  }>).find((u) => (u.email ?? "").toLowerCase() === email);
+
+  if (existing) {
+    const { data: alreadyMember } = await admin
+      .from("org_members")
+      .select("user_id")
+      .eq("organisation_id", orgId)
+      .eq("user_id", existing.id)
+      .maybeSingle();
+    if (alreadyMember) {
+      return { ok: false, error: "That person is already in this workspace." };
+    }
+  }
+
+  const token = newInviteToken();
+
+  // Replace any outstanding invitation for this address rather than stacking
+  // them up, so the newest link is the only one that works.
+  await admin
+    .from("invitations")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("organisation_id", orgId)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .ilike("email", email);
+
+  const { error } = await admin.from("invitations").insert({
+    organisation_id: orgId,
+    email,
+    role,
+    token_hash: hashInviteToken(token),
+    invited_by: guard.userId,
+  });
+  if (error) {
+    return {
+      ok: false,
+      error: error.message ?? "The invitation could not be created.",
+    };
+  }
+
+  const { data: org } = await admin
+    .from("organisations")
+    .select("slug")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (org?.slug) revalidatePath(`/${org.slug}/hr/settings`);
+
+  const origin = await originFromRequest();
+  return { ok: true, email, link: inviteLink(origin, token) };
+}
+
+export async function revokeInvitation(
+  formData: FormData,
+): Promise<SimpleResult> {
+  const orgId = String(formData.get("orgId") ?? "");
+  const invitationId = String(formData.get("invitationId") ?? "");
+
+  const guard = await assertOwner(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const admin: any = createAdminClient();
+  const { error } = await admin
+    .from("invitations")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("organisation_id", orgId)
+    .eq("id", invitationId)
+    .is("accepted_at", null);
+  if (error) return { ok: false, error: error.message };
+
+  const { data: org } = await admin
+    .from("organisations")
+    .select("slug")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (org?.slug) revalidatePath(`/${org.slug}/hr/settings`);
+  return { ok: true };
+}

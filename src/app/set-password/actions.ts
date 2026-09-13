@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,5 +38,5 @@ export async function setPassword(
   });
   if (error) return { ok: false, error: error.message };
 
-  redirect(next || "/");
+  redirect(safeRedirectPath(next));
 }

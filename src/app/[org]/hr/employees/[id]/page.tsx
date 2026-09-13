@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, ScanLine } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import { getEmployee, getEmployeeCertifications } from "@/lib/hr/queries";
+import { idTypeLabel, countryLabel } from "@/lib/validation/identification";
 import EmployeeCertsClient from "./EmployeeCertsClient";
+import IdentityFileCard from "./IdentityFileCard";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +43,10 @@ export default async function EmployeeDetailPage({
               </span>
             </h1>
             <p className="mt-2 font-mono text-sm text-[var(--brand-slate)]">
-              SA ID {employee.sa_id}
+              {idTypeLabel(employee.id_type)} {employee.id_number}
+              {employee.id_country
+                ? ` (${countryLabel(employee.id_country)})`
+                : ""}
             </p>
           </div>
           {canWrite ? (
@@ -54,10 +59,10 @@ export default async function EmployeeDetailPage({
                 Edit employee
               </Link>
               <Link
-                href={`/${slug}/hr/certifications/new?employee=${employee.id}`}
+                href={`/${slug}/hr/certifications/scan?employee=${employee.id}`}
                 className="inline-flex items-center gap-2 bg-[var(--brand-red)] hover:bg-[var(--brand-red-deep)] text-white px-4 py-2.5 rounded-md font-bold text-sm transition"
               >
-                <Plus size={14} />
+                <ScanLine size={14} />
                 Add certification
               </Link>
             </div>
@@ -65,10 +70,23 @@ export default async function EmployeeDetailPage({
         </div>
       </div>
 
-      <section className="grid sm:grid-cols-3 gap-4">
+      <section className="grid sm:grid-cols-4 gap-4">
         <Info label="Site" value={employee.site} />
         <Info label="Superior" value={employee.superior} />
         <Info label="Designation" value={employee.designation} />
+        <Info label="Document expiry" value={employee.id_expiry} />
+      </section>
+
+      <section className="max-w-md">
+        <IdentityFileCard
+          orgId={ctx.org.id}
+          slug={slug}
+          employeeId={employee.id}
+          hasFile={Boolean(employee.id_file_path)}
+          documentLabel={idTypeLabel(employee.id_type)}
+          certifiedAt={employee.id_certified_at}
+          canWrite={canWrite}
+        />
       </section>
 
       <EmployeeCertsClient

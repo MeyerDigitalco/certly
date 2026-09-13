@@ -4,10 +4,14 @@ import type {
   TrainingType,
   RegisterRow,
   CertStatus,
+  IdType,
   Certification,
   EmployeeCertificationRow,
+  TrainingTypeWithUsage,
+  CompanyDocument,
 } from "@/lib/types/database";
 import { certStatus } from "@/lib/certifications/status";
+import { certifiedCopyStatus, recertifyBy } from "@/lib/hr/certified-copy";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -38,7 +42,7 @@ export async function listEmployees(
     const term = search.replace(/[%,]/g, "").trim();
     if (term) {
       query = query.or(
-        `surname.ilike.%${term}%,names.ilike.%${term}%,sa_id.ilike.%${term}%`,
+        `surname.ilike.%${term}%,names.ilike.%${term}%,id_number.ilike.%${term}%`,
       );
     }
   }
@@ -89,6 +93,509 @@ export async function getTrainingTypes(orgId: string): Promise<TrainingType[]> {
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return (data ?? []) as TrainingType[];
+}
+
+/**
+ * Every training type in the workspace, active and hidden, with the number of
+ * certifications pointing at each. The count drives the settings screen: a type
+ * that is in use cannot be deleted, only hidden, because certifications
+ * reference it with on delete restrict.
+ */
+export async function getTrainingTypesWithUsage(
+  orgId: string,
+): Promise<TrainingTypeWithUsage[]> {
+  const supabase: any = await createClient();
+  const [typeResult, certResult] = await Promise.all([
+    supabase
+      .from("training_types")
+      .select("*")
+      .eq("organisation_id", orgId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("certifications")
+      .select("training_type_id")
+      .eq("organisation_id", orgId),
+  ]);
+  if (typeResult.error) throw typeResult.error;
+  if (certResult.error) throw certResult.error;
+
+  const counts = new Map<string, number>();
+  for (const row of (certResult.data ?? []) as Array<{ training_type_id: string }>) {
+    counts.set(row.training_type_id, (counts.get(row.training_type_id) ?? 0) + 1);
+  }
+  return ((typeResult.data ?? []) as TrainingType[]).map((t) => ({
+    ...t,
+    certification_count: counts.get(t.id) ?? 0,
+  }));
+}
+
+/** Company level documents for this workspace, in display order. */
+export async function getCompanyDocuments(
+  orgId: string,
+): Promise<CompanyDocument[]> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("company_documents")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as CompanyDocument[];
+}
+
+/** One company document, scoped to the workspace. Null if not found. */
+export async function getCompanyDocument(
+  orgId: string,
+  id: string,
+): Promise<CompanyDocument | null> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("company_documents")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return null;
+  return (data ?? null) as CompanyDocument | null;
+}
+
+// ---------------------------------------------------------------------------
+// Renewals
+// ---------------------------------------------------------------------------
+
+export type RenewalKind = "certification" | "document" | "certified_copy";
+
+export interface RenewalRow {
+  key: string;
+  kind: RenewalKind;
+  employee_id: string;
+  surname: string;
+  names: string;
+  id_number: string;
+  site: string | null;
+  superior: string | null;
+  label: string;
+  expiry_date: string;
+  days_left: number;
+  certification_id: string | null;
+}
+
+export interface RenewalBuckets {
+  expired: RenewalRow[];
+  dueSeven: RenewalRow[];
+  dueThirty: RenewalRow[];
+  horizonDays: number;
+}
+
+/**
+ * Everything that has lapsed or is about to, in one list, grouped by urgency.
+ *
+ * Certifications and identity documents share the buckets on purpose. A work
+ * permit running out stops a person at the gate exactly like a lapsed
+ * induction does, and a supervisor chasing renewals should not have to check
+ * two screens to find that out.
+ */
+export async function getRenewals(
+  orgId: string,
+  dueSoonDays = 30,
+): Promise<RenewalBuckets> {
+  const supabase: any = await createClient();
+  const [certResult, employeeResult] = await Promise.all([
+    supabase
+      .from("certifications")
+      .select(
+        "id, employee_id, expiry_date, " +
+          "employees!inner(surname, names, id_number, site, superior), " +
+          "training_types!inner(name)",
+      )
+      .eq("organisation_id", orgId)
+      .not("expiry_date", "is", null),
+    supabase
+      .from("employees")
+      .select(
+        "id, surname, names, id_number, id_type, id_expiry, site, superior, id_file_path, id_certified_at",
+      )
+      .eq("organisation_id", orgId),
+  ]);
+  if (certResult.error) throw certResult.error;
+  if (employeeResult.error) throw employeeResult.error;
+
+  const horizon = Math.max(dueSoonDays, 30);
+  const rows: RenewalRow[] = [];
+
+  const certs = (certResult.data ?? []) as Array<{
+    id: string;
+    employee_id: string;
+    expiry_date: string;
+    employees: {
+      surname: string | null;
+      names: string | null;
+      id_number: string | null;
+      site: string | null;
+      superior: string | null;
+    } | null;
+    training_types: { name: string | null } | null;
+  }>;
+
+  for (const c of certs) {
+    const { daysLeft } = certStatus(c.expiry_date, dueSoonDays);
+    if (daysLeft === null || daysLeft > horizon) continue;
+    rows.push({
+      key: `cert:${c.id}`,
+      kind: "certification",
+      employee_id: c.employee_id,
+      surname: c.employees?.surname ?? "",
+      names: c.employees?.names ?? "",
+      id_number: c.employees?.id_number ?? "",
+      site: c.employees?.site ?? null,
+      superior: c.employees?.superior ?? null,
+      label: c.training_types?.name ?? "",
+      expiry_date: c.expiry_date,
+      days_left: daysLeft,
+      certification_id: c.id,
+    });
+  }
+
+  const people = (employeeResult.data ?? []) as Array<{
+    id: string;
+    surname: string;
+    names: string;
+    id_number: string;
+    id_type: IdType;
+    id_expiry: string | null;
+    site: string | null;
+    superior: string | null;
+    id_file_path: string | null;
+    id_certified_at: string | null;
+  }>;
+
+  for (const p of people) {
+    if (!p.id_expiry) continue;
+    const { daysLeft } = certStatus(p.id_expiry, dueSoonDays);
+    if (daysLeft === null || daysLeft > horizon) continue;
+    rows.push({
+      key: `doc:${p.id}`,
+      kind: "document",
+      employee_id: p.id,
+      surname: p.surname,
+      names: p.names,
+      id_number: p.id_number,
+      site: p.site,
+      superior: p.superior,
+      label: DOCUMENT_LABELS[p.id_type] ?? "Identity document",
+      expiry_date: p.id_expiry,
+      days_left: daysLeft,
+      certification_id: null,
+    });
+  }
+
+  // A certified copy that has gone stale stops a pack at the client's desk
+  // exactly like a lapsed certificate stops a person at the gate, so it
+  // belongs in the same list rather than on a screen nobody opens. Only
+  // employees who actually have a copy on file are counted; one with no copy
+  // at all is an outstanding item on the safety file, not a renewal.
+  for (const p of people) {
+    if (!p.id_file_path) continue;
+    const copy = certifiedCopyStatus(p.id_certified_at, true);
+    if (copy.state !== "stale" && copy.state !== "expiring") continue;
+    if (copy.daysLeft === null) continue;
+    rows.push({
+      key: `copy:${p.id}`,
+      kind: "certified_copy",
+      employee_id: p.id,
+      surname: p.surname,
+      names: p.names,
+      id_number: p.id_number,
+      site: p.site,
+      superior: p.superior,
+      label: `Certified copy of ${DOCUMENT_LABELS[p.id_type] ?? "identity document"}`,
+      expiry_date: recertifyBy(p.id_certified_at) ?? "",
+      days_left: copy.daysLeft,
+      certification_id: null,
+    });
+  }
+
+  rows.sort(
+    (a, b) => a.days_left - b.days_left || a.surname.localeCompare(b.surname),
+  );
+
+  return {
+    expired: rows.filter((r) => r.days_left < 0),
+    dueSeven: rows.filter((r) => r.days_left >= 0 && r.days_left <= 7),
+    dueThirty: rows.filter((r) => r.days_left > 7 && r.days_left <= horizon),
+    horizonDays: horizon,
+  };
+}
+
+const DOCUMENT_LABELS: Record<string, string> = {
+  sa_id: "South African ID",
+  passport: "Passport",
+  work_permit: "Work permit",
+  asylum: "Asylum document",
+  other: "Identity document",
+};
+
+// ---------------------------------------------------------------------------
+// Sites
+// ---------------------------------------------------------------------------
+
+export interface SiteSummary {
+  site: string;
+  people: number;
+  records: number;
+  expired: number;
+  dueSoon: number;
+  valid: number;
+  noExpiry: number;
+  readiness: number;
+}
+
+/**
+ * One row per site, with the readiness figure a supervisor actually asks for:
+ * the share of certifications on that site that are neither expired nor about
+ * to expire. Employees with no site fall under "Unassigned" rather than being
+ * dropped, because an unassigned person is still someone's problem.
+ */
+export async function getSiteSummaries(
+  orgId: string,
+  dueSoonDays = 30,
+): Promise<SiteSummary[]> {
+  const supabase: any = await createClient();
+  const [employeeResult, certResult] = await Promise.all([
+    supabase
+      .from("employees")
+      .select("id, site")
+      .eq("organisation_id", orgId),
+    supabase
+      .from("certifications")
+      .select("id, employee_id, expiry_date")
+      .eq("organisation_id", orgId),
+  ]);
+  if (employeeResult.error) throw employeeResult.error;
+  if (certResult.error) throw certResult.error;
+
+  const employees = (employeeResult.data ?? []) as Array<{
+    id: string;
+    site: string | null;
+  }>;
+  const siteOf = new Map<string, string>();
+  const summaries = new Map<string, SiteSummary>();
+
+  function bucket(site: string): SiteSummary {
+    let entry = summaries.get(site);
+    if (!entry) {
+      entry = {
+        site,
+        people: 0,
+        records: 0,
+        expired: 0,
+        dueSoon: 0,
+        valid: 0,
+        noExpiry: 0,
+        readiness: 0,
+      };
+      summaries.set(site, entry);
+    }
+    return entry;
+  }
+
+  for (const e of employees) {
+    const site = e.site?.trim() || "Unassigned";
+    siteOf.set(e.id, site);
+    bucket(site).people += 1;
+  }
+
+  const certs = (certResult.data ?? []) as Array<{
+    id: string;
+    employee_id: string;
+    expiry_date: string | null;
+  }>;
+
+  for (const c of certs) {
+    const site = siteOf.get(c.employee_id);
+    if (!site) continue;
+    const entry = bucket(site);
+    entry.records += 1;
+    const { status } = certStatus(c.expiry_date, dueSoonDays);
+    if (status === "expired") entry.expired += 1;
+    else if (status === "due_soon") entry.dueSoon += 1;
+    else if (status === "valid") entry.valid += 1;
+    else entry.noExpiry += 1;
+  }
+
+  const out = [...summaries.values()];
+  for (const entry of out) {
+    const dated = entry.expired + entry.dueSoon + entry.valid;
+    entry.readiness = dated === 0 ? 100 : Math.round((entry.valid / dated) * 100);
+  }
+
+  out.sort((a, b) => {
+    if (a.site === "Unassigned") return 1;
+    if (b.site === "Unassigned") return -1;
+    return b.expired - a.expired || a.site.localeCompare(b.site);
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Safety file
+// ---------------------------------------------------------------------------
+
+export interface SafetyFilePerson {
+  id: string;
+  surname: string;
+  names: string;
+  id_number: string;
+  id_type: IdType;
+  id_country: string | null;
+  id_expiry: string | null;
+  id_file_path: string | null;
+  id_certified_at: string | null;
+  site: string | null;
+  designation: string | null;
+  superior: string | null;
+  certs: Record<
+    string,
+    {
+      training_date: string | null;
+      expiry_date: string | null;
+      status: CertStatus;
+      days_left: number | null;
+      has_file: boolean;
+      cert_file_path: string | null;
+      certification_id: string;
+    }
+  >;
+}
+
+export interface SafetyFileData {
+  people: SafetyFilePerson[];
+  columns: TrainingType[];
+  sites: string[];
+  totals: {
+    people: number;
+    records: number;
+    expired: number;
+    dueSoon: number;
+    missingFiles: number;
+  };
+}
+
+/**
+ * Assemble the employee half of a safety file for one workspace, optionally
+ * narrowed to a single site. Columns are the active training types that at
+ * least one included person actually holds a record for, so a pack does not
+ * print twenty empty columns.
+ */
+export async function getSafetyFileData(
+  orgId: string,
+  options: { site?: string; dueSoonDays?: number } = {},
+): Promise<SafetyFileData> {
+  const supabase: any = await createClient();
+
+  let employeeQuery = supabase
+    .from("employees")
+    .select(
+      "id, surname, names, id_number, id_type, id_country, id_expiry, id_file_path, id_certified_at, site, designation, superior",
+    )
+    .eq("organisation_id", orgId)
+    .order("surname", { ascending: true });
+  if (options.site) employeeQuery = employeeQuery.eq("site", options.site);
+
+  const [employeeResult, certResult, typeResult] = await Promise.all([
+    employeeQuery,
+    supabase
+      .from("certifications")
+      .select(
+        "id, employee_id, training_type_id, training_date, expiry_date, cert_file_path",
+      )
+      .eq("organisation_id", orgId),
+    supabase
+      .from("training_types")
+      .select("*")
+      .eq("organisation_id", orgId)
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+  ]);
+  if (employeeResult.error) throw employeeResult.error;
+  if (certResult.error) throw certResult.error;
+  if (typeResult.error) throw typeResult.error;
+
+  const employees = (employeeResult.data ?? []) as Array<{
+    id: string;
+    surname: string;
+    names: string;
+    id_number: string;
+    id_type: IdType;
+    id_country: string | null;
+    id_expiry: string | null;
+    id_file_path: string | null;
+    id_certified_at: string | null;
+    site: string | null;
+    designation: string | null;
+    superior: string | null;
+  }>;
+  const included = new Set(employees.map((e) => e.id));
+  const allTypes = (typeResult.data ?? []) as TrainingType[];
+
+  const certs = ((certResult.data ?? []) as Array<{
+    id: string;
+    employee_id: string;
+    training_type_id: string;
+    training_date: string | null;
+    expiry_date: string | null;
+    cert_file_path: string | null;
+  }>).filter((c) => included.has(c.employee_id));
+
+  const usedTypes = new Set(certs.map((c) => c.training_type_id));
+  const columns = allTypes.filter((t) => usedTypes.has(t.id));
+
+  const byEmployee = new Map<string, SafetyFilePerson["certs"]>();
+  let expired = 0;
+  let dueSoon = 0;
+  let missingFiles = 0;
+
+  for (const c of certs) {
+    const { status, daysLeft } = certStatus(c.expiry_date, options.dueSoonDays);
+    if (status === "expired") expired++;
+    if (status === "due_soon") dueSoon++;
+    if (!c.cert_file_path) missingFiles++;
+    const bucket = byEmployee.get(c.employee_id) ?? {};
+    bucket[c.training_type_id] = {
+      training_date: c.training_date,
+      expiry_date: c.expiry_date,
+      status,
+      days_left: daysLeft,
+      has_file: Boolean(c.cert_file_path),
+      cert_file_path: c.cert_file_path,
+      certification_id: c.id,
+    };
+    byEmployee.set(c.employee_id, bucket);
+  }
+
+  const people: SafetyFilePerson[] = employees.map((e) => ({
+    ...e,
+    certs: byEmployee.get(e.id) ?? {},
+  }));
+
+  const sites = [
+    ...new Set(employees.map((e) => e.site).filter((s): s is string => Boolean(s))),
+  ].sort((a, b) => a.localeCompare(b));
+
+  return {
+    people,
+    columns,
+    sites,
+    totals: {
+      people: people.length,
+      records: certs.length,
+      expired,
+      dueSoon,
+      missingFiles,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +684,7 @@ export async function getCertification(
 export type RegisterSortKey =
   | "surname"
   | "names"
-  | "sa_id"
+  | "id_number"
   | "site"
   | "training_type"
   | "training_date"
@@ -196,13 +703,6 @@ export interface RegisterFilters {
   dir?: SortDirection;
 }
 
-const STATUS_URGENCY: Record<CertStatus, number> = {
-  expired: 0,
-  due_soon: 1,
-  valid: 2,
-  no_expiry: 3,
-};
-
 // Shape returned by the joined certifications query below.
 type JoinedRegisterRow = {
   id: string;
@@ -212,131 +712,185 @@ type JoinedRegisterRow = {
   employees: {
     surname: string | null;
     names: string | null;
-    sa_id: string | null;
+    id_number: string | null;
+    id_type: IdType | null;
     site: string | null;
     superior: string | null;
   } | null;
   training_types: { name: string | null; sort_order: number | null } | null;
 };
 
+export interface RegisterPage {
+  rows: RegisterRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+export const REGISTER_PAGE_SIZE = 100;
+
 /**
- * Fetch every register row for one workspace: one row per certification,
- * joined to its employee and training type. Filtering by search / site /
- * training type / status and sorting are applied in JS. At SMB scale a
- * workspace holds at most a few thousand certifications, so this stays fast
- * and avoids a Postgres view that would need security_invoker to keep RLS.
- * Status and days-left use the workspace's own due-soon window.
+ * One page of the register, filtered, sorted and counted by Postgres.
+ *
+ * Reads public.register_rows, a security_invoker view that computes status
+ * and days_left in SQL from expiry_date and the workspace's own
+ * due_soon_days. Because the view is security_invoker, RLS applies as the
+ * calling user exactly as it does on a direct select, and the explicit
+ * organisation_id filter below is still what keeps a user who belongs to two
+ * workspaces from seeing both at once.
+ *
+ * The dueSoonDays argument is accepted for call compatibility but ignored:
+ * the view reads the value from the organisations row, so the window cannot
+ * drift between the page and the database.
  */
-export async function getRegisterRows(
+export async function getRegisterPage(
   orgId: string,
   filters: RegisterFilters = {},
-  dueSoonDays?: number,
-): Promise<RegisterRow[]> {
+  page = 0,
+  pageSize = REGISTER_PAGE_SIZE,
+): Promise<RegisterPage> {
   const supabase: any = await createClient();
-  const { data, error } = await supabase
-    .from("certifications")
-    .select(
-      "id, employee_id, training_date, expiry_date, " +
-        "employees!inner(surname, names, sa_id, site, superior), " +
-        "training_types!inner(name, sort_order)",
-    )
+
+  let query = supabase
+    .from("register_rows")
+    .select("*", { count: "exact" })
     .eq("organisation_id", orgId);
+
+  const term = filters.search?.trim();
+  if (term) {
+    const safeTerm = term.replace(/[%,()]/g, "").trim();
+    if (safeTerm) {
+      query = query.or(
+        `surname.ilike.%${safeTerm}%,names.ilike.%${safeTerm}%,id_number.ilike.%${safeTerm}%`,
+      );
+    }
+  }
+  if (filters.site) query = query.eq("site", filters.site);
+  if (filters.trainingType) query = query.eq("training_type", filters.trainingType);
+  if (filters.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
+
+  const ascending = filters.dir !== "desc";
+  const sort = filters.sort;
+  if (sort === "status") {
+    query = query
+      .order("urgency", { ascending })
+      .order("expiry_date", { ascending, nullsFirst: false });
+  } else if (sort === "days_left") {
+    query = query.order("days_left", { ascending, nullsFirst: false });
+  } else if (sort) {
+    query = query.order(sort, { ascending, nullsFirst: false });
+  } else {
+    query = query
+      .order("urgency", { ascending: true })
+      .order("expiry_date", { ascending: true, nullsFirst: false });
+  }
+  query = query.order("certification_id", { ascending: true });
+
+  const from = page * pageSize;
+  query = query.range(from, from + pageSize - 1);
+
+  const { data, error, count } = await query;
   if (error) throw error;
 
-  const raw = (data ?? []) as JoinedRegisterRow[];
-  const rows: RegisterRow[] = raw.map((r) => {
-    const { status, daysLeft } = certStatus(r.expiry_date, dueSoonDays);
-    return {
-      certification_id: r.id,
-      employee_id: r.employee_id,
-      surname: r.employees?.surname ?? "",
-      names: r.employees?.names ?? "",
-      sa_id: r.employees?.sa_id ?? "",
-      site: r.employees?.site ?? null,
-      superior: r.employees?.superior ?? null,
-      training_type: r.training_types?.name ?? "",
-      training_date: r.training_date,
-      expiry_date: r.expiry_date,
-      status,
-      days_left: daysLeft,
-    };
-  });
+  const rows = ((data ?? []) as ViewRow[]).map(fromView);
+  const total = count ?? rows.length;
 
-  const filtered = applyRegisterFilters(rows, filters);
-  return sortRegisterRows(filtered, filters.sort, filters.dir);
+  return {
+    rows,
+    total,
+    page,
+    pageSize,
+    hasMore: from + rows.length < total,
+  };
 }
 
-/** Apply the search / site / training-type / status filters in memory. */
-export function applyRegisterFilters(
-  rows: RegisterRow[],
-  filters: RegisterFilters,
-): RegisterRow[] {
-  let out = rows;
-  const term = filters.search?.trim().toLowerCase();
-  if (term) {
-    out = out.filter(
-      (r) =>
-        r.surname.toLowerCase().includes(term) ||
-        r.names.toLowerCase().includes(term) ||
-        r.sa_id.toLowerCase().includes(term),
-    );
-  }
-  if (filters.site) out = out.filter((r) => r.site === filters.site);
-  if (filters.trainingType)
-    out = out.filter((r) => r.training_type === filters.trainingType);
-  if (filters.status && filters.status !== "all")
-    out = out.filter((r) => r.status === filters.status);
-  return out;
-}
+type ViewRow = {
+  certification_id: string;
+  employee_id: string;
+  surname: string | null;
+  names: string | null;
+  id_number: string | null;
+  id_type: IdType | null;
+  site: string | null;
+  superior: string | null;
+  training_type: string | null;
+  training_date: string | null;
+  expiry_date: string | null;
+  days_left: number | null;
+  status: CertStatus;
+};
 
-/** Sort register rows by the given key and direction. */
-export function sortRegisterRows(
-  rows: RegisterRow[],
-  sort?: RegisterSortKey,
-  dir: SortDirection = "asc",
-): RegisterRow[] {
-  if (!sort) return rows;
-  const mul = dir === "desc" ? -1 : 1;
-  const copy = [...rows];
-  copy.sort((a, b) => {
-    let av: string | number | null = null;
-    let bv: string | number | null = null;
-    if (sort === "days_left") {
-      av = a.days_left;
-      bv = b.days_left;
-    } else if (sort === "status") {
-      av = STATUS_URGENCY[a.status];
-      bv = STATUS_URGENCY[b.status];
-    } else {
-      av = (a[sort] as string | null) ?? null;
-      bv = (b[sort] as string | null) ?? null;
-    }
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    if (typeof av === "number" && typeof bv === "number") {
-      return (av - bv) * mul;
-    }
-    return String(av).localeCompare(String(bv)) * mul;
-  });
-  return copy;
+function fromView(r: ViewRow): RegisterRow {
+  return {
+    certification_id: r.certification_id,
+    employee_id: r.employee_id,
+    surname: r.surname ?? "",
+    names: r.names ?? "",
+    id_number: r.id_number ?? "",
+    id_type: r.id_type ?? "sa_id",
+    site: r.site,
+    superior: r.superior,
+    training_type: r.training_type ?? "",
+    training_date: r.training_date,
+    expiry_date: r.expiry_date,
+    status: r.status,
+    days_left: r.days_left,
+  };
 }
 
 /**
- * KPI counts across the whole register (ignoring search and filters, which
- * only narrow the table below). Used for the coloured cards at the top.
+ * Status counts across the whole register, ignoring filters, for the coloured
+ * cards. Four head-only counts rather than pulling every row down to tally
+ * them in memory.
  */
 export async function getRegisterKpis(
   orgId: string,
-  dueSoonDays?: number,
 ): Promise<Record<CertStatus, number>> {
-  const rows = await getRegisterRows(orgId, {}, dueSoonDays);
+  const supabase: any = await createClient();
+  const statuses: CertStatus[] = ["expired", "due_soon", "valid", "no_expiry"];
+
+  const results = await Promise.all(
+    statuses.map((status) =>
+      supabase
+        .from("register_rows")
+        .select("certification_id", { count: "exact", head: true })
+        .eq("organisation_id", orgId)
+        .eq("status", status),
+    ),
+  );
+
   const kpi: Record<CertStatus, number> = {
     expired: 0,
     due_soon: 0,
     valid: 0,
     no_expiry: 0,
   };
-  for (const r of rows) kpi[r.status]++;
+  statuses.forEach((status, i) => {
+    kpi[status] = results[i].count ?? 0;
+  });
   return kpi;
 }
+
+/**
+ * Every matching row, unpaged. Only for the CSV export, which by definition
+ * has to hand over the whole register. Everything on screen uses
+ * getRegisterPage.
+ */
+export async function getRegisterRows(
+  orgId: string,
+  filters: RegisterFilters = {},
+): Promise<RegisterRow[]> {
+  const out: RegisterRow[] = [];
+  const pageSize = 1000;
+  for (let page = 0; page < 200; page += 1) {
+    const result = await getRegisterPage(orgId, filters, page, pageSize);
+    out.push(...result.rows);
+    if (!result.hasMore) break;
+  }
+  return out;
+}
+
+

@@ -60,7 +60,7 @@ export default function RegisterFilters({
         />
         <input
           type="search"
-          placeholder="Search by name, surname or SA ID..."
+          placeholder="Search by name, surname or document number..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-3 py-2.5 border border-[var(--brand-line)] rounded-md focus:outline-none focus:border-[var(--brand-red)]"

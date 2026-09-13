@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { UserPlus, Plus } from "lucide-react";
+import { UserPlus, ScanLine, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import {
-  getRegisterRows,
+  getRegisterPage,
   getRegisterKpis,
   getSiteOptions,
   getTrainingTypes,
@@ -29,7 +29,7 @@ const VALID_STATUSES: (CertStatus | "all")[] = [
 const VALID_SORT_KEYS: RegisterSortKey[] = [
   "surname",
   "names",
-  "sa_id",
+  "id_number",
   "site",
   "training_type",
   "training_date",
@@ -50,12 +50,12 @@ export default async function HrRegisterPage({
     status?: string;
     sort?: string;
     dir?: string;
+    page?: string;
   }>;
 }) {
   const { org: slug } = await params;
   const ctx = await requireTenant(slug);
   const canWrite = isAdmin(ctx.role);
-  const dueSoonDays = ctx.org.due_soon_days;
 
   const sp = await searchParams;
   const statusFilter: CertStatus | "all" =
@@ -68,8 +68,10 @@ export default async function HrRegisterPage({
       : undefined;
   const dir: SortDirection = sp.dir === "desc" ? "desc" : "asc";
 
-  const [rows, kpis, sites, trainingTypes] = await Promise.all([
-    getRegisterRows(
+  const page = Math.max(0, Number(sp.page ?? "0") || 0);
+
+  const [register, kpis, sites, trainingTypes] = await Promise.all([
+    getRegisterPage(
       ctx.org.id,
       {
         search: sp.search,
@@ -79,12 +81,13 @@ export default async function HrRegisterPage({
         sort,
         dir,
       },
-      dueSoonDays,
+      page,
     ),
-    getRegisterKpis(ctx.org.id, dueSoonDays),
+    getRegisterKpis(ctx.org.id),
     getSiteOptions(ctx.org.id),
     getTrainingTypes(ctx.org.id),
   ]);
+  const rows = register.rows;
 
   return (
     <div className="space-y-8">
@@ -104,6 +107,13 @@ export default async function HrRegisterPage({
         {canWrite ? (
           <div className="flex flex-wrap gap-2">
             <Link
+              href={`/${slug}/hr/import`}
+              className="inline-flex items-center gap-2 border border-[var(--brand-line)] text-[var(--brand-slate)] hover:border-[var(--brand-ink)] hover:text-[var(--brand-ink)] px-4 py-2.5 rounded-md font-bold text-sm transition"
+            >
+              <Upload size={14} />
+              Import
+            </Link>
+            <Link
               href={`/${slug}/hr/employees/new`}
               className="inline-flex items-center gap-2 border border-[var(--brand-ink)] text-[var(--brand-ink)] hover:bg-[var(--brand-ink)] hover:text-white px-4 py-2.5 rounded-md font-bold text-sm transition"
             >
@@ -111,10 +121,10 @@ export default async function HrRegisterPage({
               New employee
             </Link>
             <Link
-              href={`/${slug}/hr/certifications/new`}
+              href={`/${slug}/hr/certifications/scan`}
               className="inline-flex items-center gap-2 bg-[var(--brand-red)] hover:bg-[var(--brand-red-deep)] text-white px-4 py-2.5 rounded-md font-bold text-sm transition"
             >
-              <Plus size={14} />
+              <ScanLine size={14} />
               Add certification
             </Link>
           </div>
@@ -141,6 +151,85 @@ export default async function HrRegisterPage({
           status: sp.status,
         }}
       />
+
+      <RegisterPager
+        slug={slug}
+        page={register.page}
+        pageSize={register.pageSize}
+        total={register.total}
+        hasMore={register.hasMore}
+        params={{
+          search: sp.search,
+          site: sp.site,
+          training: sp.training,
+          status: sp.status,
+          sort: sp.sort,
+          dir: sp.dir,
+        }}
+      />
+    </div>
+  );
+}
+
+function RegisterPager({
+  slug,
+  page,
+  pageSize,
+  total,
+  hasMore,
+  params,
+}: {
+  slug: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+  params: Record<string, string | undefined>;
+}) {
+  if (total <= pageSize) {
+    return (
+      <p className="text-xs text-[var(--brand-slate)]">
+        {total} record{total === 1 ? "" : "s"}
+      </p>
+    );
+  }
+
+  const href = (next: number) => {
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value) qs.set(key, value);
+    }
+    if (next > 0) qs.set("page", String(next));
+    const text = qs.toString();
+    return `/${slug}/hr${text ? `?${text}` : ""}`;
+  };
+
+  const first = page * pageSize + 1;
+  const last = Math.min(total, page * pageSize + pageSize);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-[var(--brand-slate)]">
+        Showing {first} to {last} of {total}
+      </p>
+      <div className="flex items-center gap-4">
+        {page > 0 ? (
+          <Link
+            href={href(page - 1)}
+            className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-ink)] hover:text-[var(--brand-red)]"
+          >
+            <ChevronLeft size={14} /> Previous
+          </Link>
+        ) : null}
+        {hasMore ? (
+          <Link
+            href={href(page + 1)}
+            className="inline-flex items-center gap-1 text-sm font-bold text-[var(--brand-ink)] hover:text-[var(--brand-red)]"
+          >
+            Next <ChevronRight size={14} />
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }

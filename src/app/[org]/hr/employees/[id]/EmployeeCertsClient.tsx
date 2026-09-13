@@ -72,7 +72,7 @@ export default function EmployeeCertsClient({
     });
   }
 
-  const addHref = `/${slug}/hr/certifications/new?employee=${employeeId}`;
+  const addHref = `/${slug}/hr/certifications/scan?employee=${employeeId}`;
 
   return (
     <section>

@@ -3,13 +3,17 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
-import type { Employee } from "@/lib/types/database";
+import type { Employee, IdType } from "@/lib/types/database";
 import {
   createEmployee,
   updateEmployee,
   deleteEmployee,
 } from "@/lib/hr/mutations";
-import { validateSaId } from "@/lib/validation/sa-id";
+import {
+  validateIdentification,
+  ID_TYPES,
+  ID_COUNTRIES,
+} from "@/lib/validation/identification";
 
 export default function EmployeeForm({
   orgId,
@@ -27,8 +31,12 @@ export default function EmployeeForm({
   const [error, setError] = useState<{ field?: string; message: string } | null>(
     null,
   );
-  const [saId, setSaId] = useState(initial?.sa_id ?? "");
-  const saCheck = saId ? validateSaId(saId) : null;
+  const [idType, setIdType] = useState<IdType>(initial?.id_type ?? "sa_id");
+  const [idNumber, setIdNumber] = useState(initial?.id_number ?? "");
+
+  const idCheck = idNumber ? validateIdentification(idType, idNumber) : null;
+  const typeMeta = ID_TYPES.find((t) => t.value === idType);
+  const needsExpiry = idType !== "sa_id";
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,9 +51,7 @@ export default function EmployeeForm({
         return;
       }
       router.push(
-        initial
-          ? `/${slug}/hr/employees/${initial.id}`
-          : `/${slug}/hr/employees`,
+        initial ? `/${slug}/hr/employees/${initial.id}` : `/${slug}/hr/employees`,
       );
       router.refresh();
     });
@@ -97,40 +103,93 @@ export default function EmployeeForm({
         />
       </div>
 
-      <div>
-        <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
-          SA ID <span className="text-[var(--brand-red)]">*</span>
-        </label>
-        <input
-          type="text"
-          name="sa_id"
-          value={saId}
-          onChange={(e) => setSaId(e.target.value.replace(/\s+/g, ""))}
-          maxLength={13}
-          required
-          inputMode="numeric"
-          pattern="\d{13}"
-          className={`mt-1 w-full border rounded-md p-3 font-mono focus:outline-none focus:border-[var(--brand-red)] ${
-            error?.field === "sa_id" || (saCheck && !saCheck.valid)
-              ? "border-red-400"
-              : "border-[var(--brand-line)]"
-          }`}
-        />
-        {saCheck ? (
-          saCheck.valid ? (
-            <p className="mt-1 text-xs text-emerald-700">
-              Valid. DOB {saCheck.dateOfBirth},{" "}
-              {saCheck.gender === "male" ? "male" : "female"},{" "}
-              {saCheck.citizen ? "citizen" : "permanent resident"}.
-            </p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <Label required>Identification type</Label>
+          <select
+            name="id_type"
+            value={idType}
+            onChange={(e) => setIdType(e.target.value as IdType)}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 bg-white focus:outline-none focus:border-[var(--brand-red)]"
+          >
+            {ID_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label required>Issuing country</Label>
+          <select
+            name="id_country"
+            defaultValue={initial?.id_country ?? "ZA"}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 bg-white focus:outline-none focus:border-[var(--brand-red)]"
+          >
+            {ID_COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <Label required>Identification number</Label>
+          <input
+            type="text"
+            name="id_number"
+            value={idNumber}
+            onChange={(e) =>
+              setIdNumber(
+                idType === "sa_id"
+                  ? e.target.value.replace(/\s+/g, "")
+                  : e.target.value,
+              )
+            }
+            maxLength={idType === "sa_id" ? 13 : 30}
+            required
+            inputMode={idType === "sa_id" ? "numeric" : "text"}
+            className={`mt-1 w-full border rounded-md p-3 font-mono focus:outline-none focus:border-[var(--brand-red)] ${
+              error?.field === "id_number" || (idCheck && !idCheck.valid)
+                ? "border-red-400"
+                : "border-[var(--brand-line)]"
+            }`}
+          />
+          {idCheck ? (
+            idCheck.valid ? (
+              <p className="mt-1 text-xs text-emerald-700">
+                {idCheck.detail ?? "Looks valid."}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-red-600">{idCheck.reason}</p>
+            )
           ) : (
-            <p className="mt-1 text-xs text-red-600">{saCheck.reason}</p>
-          )
-        ) : (
+            <p className="mt-1 text-xs text-[var(--brand-slate)]">
+              {typeMeta?.hint}
+            </p>
+          )}
+        </div>
+        <div>
+          <Label>Document expiry</Label>
+          <input
+            type="date"
+            name="id_expiry"
+            defaultValue={initial?.id_expiry ?? ""}
+            className={`mt-1 w-full border rounded-md p-3 focus:outline-none focus:border-[var(--brand-red)] ${
+              error?.field === "id_expiry"
+                ? "border-red-400"
+                : "border-[var(--brand-line)]"
+            }`}
+          />
           <p className="mt-1 text-xs text-[var(--brand-slate)]">
-            13 digits. Luhn checksum is verified on save.
+            {needsExpiry
+              ? "A lapsed permit stops this person at the gate. Record it."
+              : "South African IDs do not expire. Leave this blank."}
           </p>
-        )}
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4">
@@ -182,6 +241,21 @@ export default function EmployeeForm({
   );
 }
 
+function Label({
+  children,
+  required,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+      {children}{" "}
+      {required ? <span className="text-[var(--brand-red)]">*</span> : null}
+    </label>
+  );
+}
+
 function Field({
   label,
   name,
@@ -199,10 +273,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
-        {label}{" "}
-        {required ? <span className="text-[var(--brand-red)]">*</span> : null}
-      </label>
+      <Label required={required}>{label}</Label>
       <input
         type="text"
         name={name}

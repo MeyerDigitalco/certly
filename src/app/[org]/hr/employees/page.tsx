@@ -56,7 +56,7 @@ export default async function EmployeesPage({
             type="search"
             name="search"
             defaultValue={sp.search ?? ""}
-            placeholder="Search by name, surname or SA ID..."
+            placeholder="Search by name, surname or document number..."
             className="w-full pl-9 pr-3 py-2.5 border border-[var(--brand-line)] rounded-md focus:outline-none focus:border-[var(--brand-red)]"
           />
         </div>

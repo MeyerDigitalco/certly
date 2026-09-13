@@ -1,15 +1,107 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { SITE } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Certly - HR compliance for South African businesses", template: "%s - Certly" },
-  description: "Track staff training, certifications, and renewals. Built for South African safety-critical industries.",
+  metadataBase: new URL(SITE.domain),
+  title: {
+    default: "Certly - site access compliance for South African contractors",
+    template: "%s - Certly",
+  },
+  description:
+    "Track every induction, medical, TEBA record and competency your crew needs on site. See who lapses before the gate does, and draft the safety file from the same register.",
+  applicationName: "Certly",
+  keywords: [
+    "safety file",
+    "site access compliance",
+    "training register",
+    "certification tracking",
+    "OHS Act",
+    "Mine Health and Safety Act",
+    "contractor compliance",
+    "South Africa",
+  ],
+  authors: [{ name: SITE.legalEntity }],
+  alternates: { canonical: SITE.domain },
+  openGraph: {
+    type: "website",
+    siteName: "Certly",
+    locale: "en_ZA",
+    url: SITE.domain,
+    title: "Nobody gets turned away at the gate",
+    description:
+      "Certly tracks every induction, medical and competency your crew needs on site, and drafts the safety file from the same register.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nobody gets turned away at the gate",
+    description:
+      "Site access compliance and safety files for South African contractors.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ede7d9",
+  width: "device-width",
+  initialScale: 1,
+};
+
+const ORG_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Certly",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: SITE.domain,
+  description:
+    "Training and certification register for South African contractors, with safety file drafting.",
+  offers: {
+    "@type": "Offer",
+    price: "999",
+    priceCurrency: "ZAR",
+    description: "Up to 50 people on the register, then R10 per additional person.",
+  },
+  areaServed: { "@type": "Country", name: "South Africa" },
+  publisher: { "@type": "Organization", name: SITE.legalEntity },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en-ZA">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
+        />
+      </head>
+      <body>
+        {children}
+        {SITE.analyticsScript ? (
+          <script
+            defer
+            src={SITE.analyticsScript}
+            {...(SITE.analyticsDomain
+              ? { "data-domain": SITE.analyticsDomain }
+              : {})}
+          />
+        ) : null}
+      </body>
     </html>
   );
 }
