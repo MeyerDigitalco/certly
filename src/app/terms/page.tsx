@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SITE } from "@/lib/site";
 import LegalShell from "@/components/LegalShell";
 
@@ -69,8 +70,13 @@ export default function TermsPage() {
         New workspaces get a 14 day trial with no card required. After that the
         subscription is R999 per month for a register of up to 50 people, plus R10
         per month for each additional person on the register. Prices are in South
-        African rand and exclude VAT. Fees are billed monthly in advance and are not
-        refundable for a part month.
+        African rand. {SITE.legalEntity} is not registered for VAT, so no VAT is
+        charged and none is shown. Fees are billed monthly in advance by debit
+        order through PayFast and are not refundable for a part month.
+      </p>
+      <p>
+        Full billing, cancellation and refund terms are in our{" "}
+        <Link href="/refunds">refund and cancellation policy</Link>.
       </p>
       <p>
         We may change prices on 30 days written notice to the email address on the
@@ -110,10 +116,16 @@ export default function TermsPage() {
 
       <h3>10. Suspension and cancellation</h3>
       <p>
-        You may cancel at any time from your workspace settings and the cancellation
-        takes effect at the end of the paid month. We may suspend a workspace for
-        non payment after written notice, or immediately where use threatens the
-        security or integrity of the service.
+        You may cancel at any time from the Billing screen in your workspace. No
+        further debit order is taken, you keep full use until the end of the month
+        already paid for, and after that the workspace becomes read only rather than
+        closed. We may suspend a workspace for non payment after written notice, or
+        immediately where use threatens the security or integrity of the service.
+      </p>
+      <p>
+        An owner can also close a workspace outright from the Billing screen, which
+        permanently deletes every record and file in it. See our{" "}
+        <Link href="/refunds">refund and cancellation policy</Link> for the detail.
       </p>
 
       <h3>11. Getting your data out</h3>

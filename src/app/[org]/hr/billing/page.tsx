@@ -15,6 +15,7 @@ import {
 import { payfastConfig, checkoutFields } from "@/lib/billing/payfast";
 import PayFastForm from "./PayFastForm";
 import CloseAccount from "./CloseAccount";
+import CancelSubscription from "./CancelSubscription";
 
 export const metadata = { title: "Billing" };
 export const dynamic = "force-dynamic";
@@ -93,7 +94,12 @@ export default async function BillingPage({
         </p>
       ) : null}
 
-      <Status state={state} />
+      <Status
+        state={state}
+        orgId={ctx.org.id}
+        slug={slug}
+        periodEnd={ctx.org.current_period_end}
+      />
 
       <section className="bg-white border border-[var(--brand-line)] rounded-2xl p-6 space-y-4">
         <header className="flex items-start gap-3">
@@ -183,22 +189,29 @@ export default async function BillingPage({
 
 function Status({
   state,
+  orgId,
+  slug,
+  periodEnd,
 }: {
   state: Awaited<ReturnType<typeof getBillingState>>;
+  orgId: string;
+  slug: string;
+  periodEnd: string | null;
 }) {
   if (state.state === "subscribed") {
     return (
       <section className="bg-emerald-50 border border-emerald-300 rounded-2xl p-6 flex items-start gap-3">
         <ShieldCheck size={20} className="text-emerald-700 mt-0.5 shrink-0" />
-        <div>
+        <div className="flex-1">
           <p className="font-black text-emerald-900">Subscribed</p>
           <p className="text-sm text-emerald-900 mt-1">
             {state.daysLeft !== null
               ? `Next debit order in ${state.daysLeft} day${state.daysLeft === 1 ? "" : "s"}.`
               : "Your subscription is active."}{" "}
-            To cancel, do it from your PayFast account. Your workspace stays
-            readable afterwards.
+            Cancel whenever you like. Your workspace stays readable afterwards
+            and nothing is deleted.
           </p>
+          <CancelSubscription orgId={orgId} slug={slug} periodEnd={periodEnd} />
         </div>
       </section>
     );

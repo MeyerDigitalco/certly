@@ -201,7 +201,9 @@ export function PriceCalculator() {
           </div>
           <div>
             <div className="amt">{money(total)}</div>
-            <div className="per">R{(total / people).toFixed(2)} per person</div>
+            <div className="per">
+              works out to R{(total / people).toFixed(2)} a head
+            </div>
           </div>
         </div>
 
@@ -238,8 +240,8 @@ export function PriceCalculator() {
         </div>
 
         <div className="vat">
-          Per working day: R{Math.round(total / 30)} &nbsp;&middot;&nbsp; Rand,
-          excl. VAT
+          Per working day: R{Math.round(total / 30)} &nbsp;&middot;&nbsp; Rand.
+          No VAT is charged.
         </div>
       </div>
     </div>

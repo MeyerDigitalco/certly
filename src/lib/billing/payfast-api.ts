@@ -113,3 +113,55 @@ export async function updateSubscriptionAmount(
     };
   }
 }
+
+/**
+ * Cancel a live subscription.
+ *
+ * Separate from the local state change on purpose. The workspace is marked
+ * cancelled whatever this returns, because a customer who clicked cancel has
+ * cancelled, and leaving them subscribed in our records while PayFast was
+ * briefly unreachable would be the wrong failure. A failure here means the
+ * debit order may still run, which is a refund we owe, not a subscription
+ * they still have.
+ */
+export async function cancelSubscription(
+  config: PayFastConfig,
+  token: string,
+): Promise<UpdateOutcome> {
+  if (!token) {
+    return { status: "skipped", reason: "No PayFast token on this workspace." };
+  }
+  if (config.sandbox) {
+    return {
+      status: "skipped",
+      reason: "Sandbox mode; the merchant API is not called.",
+    };
+  }
+
+  const headers: Record<string, string> = {
+    "merchant-id": config.merchantId,
+    version: API_VERSION,
+    timestamp: apiTimestamp(),
+  };
+  const signature = apiSignature(headers, {}, config.passphrase);
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/subscriptions/${encodeURIComponent(token)}/cancel`,
+      { method: "PUT", headers: { ...headers, signature } },
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      return {
+        status: "failed",
+        reason: `${response.status} ${text.slice(0, 200)}`,
+      };
+    }
+    return { status: "updated" };
+  } catch (error) {
+    return {
+      status: "failed",
+      reason: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}

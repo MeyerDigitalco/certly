@@ -307,6 +307,7 @@ export default async function Home() {
           <p className="formref">
             <Link href="/privacy">Privacy</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/terms">Terms</Link> &nbsp;&middot;&nbsp;{" "}
+            <Link href="/refunds">Refunds</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/contact">Contact</Link> &nbsp;&middot;&nbsp; Built in
             South Africa
           </p>
