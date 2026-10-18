@@ -1,3 +1,4 @@
+import { promises as dns } from "node:dns";
 import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -21,29 +22,63 @@ export const maxDuration = 30;
  * so it assumes every request is hostile until four things hold:
  *
  *   1. The signature matches, proving the sender knows the passphrase.
- *   2. The request came from a PayFast host, because a leaked passphrase
- *      alone should not be enough.
- *   3. PayFast itself confirms the notification when we post it back.
- *   4. The amount matches what this workspace should actually be paying,
+ *   2. PayFast itself confirms the notification when we post it back. This
+ *      is the authoritative check: an attacker who somehow forged a valid
+ *      signature still cannot make PayFast vouch for a transaction that
+ *      never happened.
+ *   3. The amount matches what this workspace should actually be paying,
  *      recomputed here rather than taken from the notification.
+ *
+ * The source IP is also checked against PayFast's own servers, resolved by
+ * DNS, but only as a recorded observation. It does not reject. An earlier
+ * version rejected on a header comparison that can never match a real
+ * server-to-server POST, which would have dropped every genuine payment
+ * while returning 200 so PayFast never retried. A check that produces false
+ * negatives on live traffic is worse than no check, and the validate
+ * callback above already carries the weight.
  *
  * Only then does anything change. PayFast retries anything that is not a
  * clean 200, so the handler is idempotent on pf_payment_id: a repeat is
  * recorded as already seen and returns 200 rather than double applying.
  *
  * It always answers 200 with an empty body, even on rejection. Telling an
- * attacker which of the four checks they failed is free help, and a non-200
+ * attacker which check they failed is free help, and a non-200
  * only makes PayFast retry a notification we have already refused.
  */
 
 const OK = new Response("", { status: 200 });
 
-function hostAllowed(request: NextRequest): boolean {
-  const forwarded = request.headers.get("x-forwarded-host");
-  const referer = request.headers.get("referer") ?? "";
-  if (PAYFAST_HOSTS.some((host) => referer.includes(host))) return true;
-  if (forwarded && PAYFAST_HOSTS.includes(forwarded)) return true;
-  return false;
+function sourceIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for") ?? "";
+  const first = forwardedFor.split(",")[0]?.trim();
+  return first || request.headers.get("x-real-ip") || "";
+}
+
+type IpCheck = "match" | "mismatch" | "unknown";
+
+/**
+ * Compare the caller's IP to the addresses PayFast's own hosts resolve to.
+ * Returns "unknown" rather than "mismatch" when DNS or the proxy headers
+ * give us nothing to compare, so a resolver blip is never mistaken for an
+ * intruder.
+ */
+async function checkSourceIp(request: NextRequest): Promise<IpCheck> {
+  const ip = sourceIp(request);
+  if (!ip) return "unknown";
+
+  const lookups = await Promise.all(
+    PAYFAST_HOSTS.map(async (host) => {
+      const [v4, v6] = await Promise.all([
+        dns.resolve4(host).catch(() => [] as string[]),
+        dns.resolve6(host).catch(() => [] as string[]),
+      ]);
+      return [...v4, ...v6];
+    }),
+  );
+
+  const known = new Set(lookups.flat());
+  if (known.size === 0) return "unknown";
+  return known.has(ip) ? "match" : "mismatch";
 }
 
 async function confirmWithPayFast(
@@ -88,13 +123,13 @@ export async function POST(request: NextRequest) {
     return OK;
   }
 
-  if (!config.sandbox && !hostAllowed(request)) {
-    return OK;
-  }
-
   if (!(await confirmWithPayFast(raw, config.sandbox))) {
     return OK;
   }
+
+  const ipCheck = config.sandbox
+    ? "unknown"
+    : await checkSourceIp(request).catch((): IpCheck => "unknown");
 
   const orgId = get("custom_str1") || get("m_payment_id");
   const pfPaymentId = get("pf_payment_id");
@@ -136,8 +171,16 @@ export async function POST(request: NextRequest) {
       ? Math.round(grossRands * 100)
       : null,
     seats,
-    status: amountOk ? "accepted" : "amount_mismatch",
-    raw: Object.fromEntries(fields.filter(([k]) => k !== "signature")),
+    status: amountOk
+      ? ipCheck === "mismatch"
+        ? "accepted_source_ip_mismatch"
+        : "accepted"
+      : "amount_mismatch",
+    raw: {
+      ...Object.fromEntries(fields.filter(([k]) => k !== "signature")),
+      source_ip: sourceIp(request),
+      source_ip_check: ipCheck,
+    },
   });
 
   // 23505 on pf_payment_id means PayFast is retrying something already
