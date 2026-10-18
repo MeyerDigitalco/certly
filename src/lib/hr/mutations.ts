@@ -1377,7 +1377,108 @@ export async function terminateEmployee(
   revalidatePath(`/${slug}/hr`);
   revalidatePath(`/${slug}/hr/employees`);
   revalidatePath(`/${slug}/hr/employees/${id}`);
-  revalidatePath(`/${slug}/hr/reports`);
+  revalidateReportPaths(slug);
+  return { ok: true };
+}
+
+const LIFECYCLE_DATE_FIELDS = [
+  "date_of_birth",
+  "engaged_at",
+  "approved_retirement_date",
+  "terminated_at",
+] as const;
+
+const LIFECYCLE_TEXT_FIELDS = ["site", "designation"] as const;
+
+/**
+ * Patch one or more lifecycle fields on an employee straight from a report
+ * page. Only the keys present in the form are touched, so a dropdown that
+ * changes the termination reason does not clear the date next to it. The
+ * employee page and every report read the same row, so an edit made here is
+ * visible there on the next load and vice versa.
+ */
+export async function updateEmployeeLifecycle(
+  orgId: string,
+  slug: string,
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const patch: Record<string, string | number | null> = {};
+
+  for (const key of LIFECYCLE_DATE_FIELDS) {
+    if (!formData.has(key)) continue;
+    const v = String(formData.get(key) ?? "").trim();
+    if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      return { ok: false, error: "Not a valid date", field: key };
+    }
+    patch[key] = v || null;
+  }
+
+  for (const key of LIFECYCLE_TEXT_FIELDS) {
+    if (!formData.has(key)) continue;
+    const v = String(formData.get(key) ?? "").trim();
+    if (v.length > 120) return { ok: false, error: "Too long", field: key };
+    patch[key] = v || null;
+  }
+
+  if (formData.has("retirement_age")) {
+    const v = String(formData.get("retirement_age") ?? "").trim();
+    if (v) {
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 50 || n > 75) {
+        return { ok: false, error: "Retirement age must be between 50 and 75", field: "retirement_age" };
+      }
+      patch.retirement_age = n;
+    } else {
+      patch.retirement_age = null;
+    }
+  }
+
+  if (formData.has("termination_reason")) {
+    const v = String(formData.get("termination_reason") ?? "").trim();
+    if (!v) {
+      return {
+        ok: false,
+        error: "Use Reinstate on the employee page to undo a termination",
+        field: "termination_reason",
+      };
+    }
+    if (!isTerminationReason(v)) {
+      return { ok: false, error: "Choose a reason", field: "termination_reason" };
+    }
+    patch.termination_reason = v;
+  }
+
+  if (patch.terminated_at === null && formData.has("terminated_at")) {
+    return {
+      ok: false,
+      error: "Use Reinstate on the employee page to undo a termination",
+      field: "terminated_at",
+    };
+  }
+
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const guard = await assertAdmin(orgId);
+  if (guard) return { ok: false, error: guard };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("employees")
+    .update(patch)
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) {
+    if (error?.code === "23514") {
+      return { ok: false, error: "A last day needs a reason and a reason needs a last day" };
+    }
+    return { ok: false, error: friendlyError(error) };
+  }
+
+  revalidatePath(`/${slug}/hr`);
+  revalidatePath(`/${slug}/hr/employees`);
+  revalidatePath(`/${slug}/hr/employees/${id}`);
+  revalidateReportPaths(slug);
   return { ok: true };
 }
 
@@ -1743,8 +1844,11 @@ const LabourPlanSchema = z.object({
 function revalidateReportPaths(slug: string): void {
   revalidatePath(`/${slug}/hr/reports`);
   revalidatePath(`/${slug}/hr/reports/staff-movement`);
+  revalidatePath(`/${slug}/hr/reports/fault-terminations`);
+  revalidatePath(`/${slug}/hr/reports/retirement`);
   revalidatePath(`/${slug}/hr/reports/labour-plan`);
   revalidatePath(`/${slug}/hr/reports/labour-plan/plan`);
+  revalidatePath(`/${slug}/hr/reports/labour-plan/tracker`);
 }
 
 /**

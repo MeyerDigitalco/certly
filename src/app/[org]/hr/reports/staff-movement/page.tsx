@@ -8,13 +8,23 @@ import {
   sitesFrom,
 } from "@/lib/reports/data";
 import {
+  activeAtEnd,
   buildStaffMovement,
   formatPct,
   formatSigned,
   UNCLASSIFIED_LABEL,
 } from "@/lib/reports/staff-movement";
+import { siteOf } from "@/lib/hr/operations";
 import ReportShell, { Section, Stat, Th, Td } from "@/components/reports/ReportShell";
 import { GroupedBars, StackedBar, CHART_COLOURS } from "@/lib/reports/charts";
+import InlineField from "@/components/reports/InlineField";
+import RecordLeaver from "@/components/reports/RecordLeaver";
+import { isAdmin } from "@/lib/auth/roles";
+import {
+  defaultLastDay,
+  leaverCandidates,
+  terminationReasonOptions,
+} from "@/lib/reports/inline";
 
 export const metadata = { title: "Staff movement" };
 export const dynamic = "force-dynamic";
@@ -41,6 +51,16 @@ export default async function StaffMovementPage({
   const report = buildStaffMovement(employees, plans, period, site);
   const { kpis, matrix, planVsActual, trend, leavers } = report;
   const exportHref = `/${slug}/hr/reports/staff-movement/export?period=${periodKey(period)}${site ? `&site=${encodeURIComponent(site)}` : ""}`;
+
+  const canWrite = isAdmin(ctx.role);
+  const reasonOptions = terminationReasonOptions();
+  const leaverPool = canWrite ? leaverCandidates(employees, period.end, site) : [];
+  const lastDay = defaultLastDay(period.end);
+  const inService = canWrite
+    ? employees.filter((e) => activeAtEnd(e, period) && (!site || siteOf(e.site) === site))
+    : [];
+  const knownSites = sitesFrom(employees, plans, candidates);
+  const knownDesignations = [...new Set(employees.map((e) => (e.designation ?? "").trim()).filter(Boolean))].sort();
 
   const turnoverTone = kpis.turnoverPct >= 10 ? "red" : kpis.turnoverPct >= 5 ? "amber" : undefined;
   const headcountDelta = kpis.endHeadcount - kpis.startHeadcount;
@@ -196,11 +216,24 @@ export default async function StaffMovementPage({
         title="Leavers"
         subtitle={`Everyone whose last day fell in ${period.label}${site ? ` at ${site}` : ""}.`}
       >
+        {canWrite ? (
+          <div className="mb-4">
+            <RecordLeaver
+              orgId={ctx.org.id}
+              slug={slug}
+              employees={leaverPool}
+              defaultDate={lastDay.defaultDate}
+              maxDate={lastDay.maxDate}
+            />
+          </div>
+        ) : null}
         {leavers.length === 0 ? (
           <EmptyBox>
             Nobody left in {period.label}
-            {site ? ` at ${site}` : ""}. If someone did, record their last day on the employee
-            page under Leaving.
+            {site ? ` at ${site}` : ""}.
+            {canWrite
+              ? " If someone did, use Record a leaver above or the employee page under Leaving."
+              : " If someone did, an admin can record their last day on the employee page under Leaving."}
           </EmptyBox>
         ) : (
           <div className="overflow-x-auto">
@@ -230,8 +263,43 @@ export default async function StaffMovementPage({
                     <Td>{l.names}</Td>
                     <Td>{l.designation}</Td>
                     <Td>{l.site}</Td>
-                    <Td mono>{l.lastDay}</Td>
-                    <Td>{l.reasonLabel}</Td>
+                    <Td mono>
+                      {canWrite ? (
+                        <>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={l.id}
+                            name="terminated_at"
+                            kind="date"
+                            value={l.lastDay}
+                            max={lastDay.maxDate}
+                          />
+                          <span className="hidden print:inline">{l.lastDay}</span>
+                        </>
+                      ) : (
+                        l.lastDay
+                      )}
+                    </Td>
+                    <Td>
+                      {canWrite ? (
+                        <>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={l.id}
+                            name="termination_reason"
+                            kind="select"
+                            value={l.reason}
+                            options={reasonOptions}
+                            width="w-44"
+                          />
+                          <span className="hidden print:inline">{l.reasonLabel}</span>
+                        </>
+                      ) : (
+                        l.reasonLabel
+                      )}
+                    </Td>
                     <Td
                       className={
                         l.cls === "fault"
@@ -250,6 +318,98 @@ export default async function StaffMovementPage({
           </div>
         )}
       </Section>
+
+      {canWrite ? (
+        <details className="print:hidden bg-white border border-[var(--brand-line)] rounded-2xl">
+          <summary className="cursor-pointer select-none px-6 py-4 text-lg font-black">
+            Register at month end
+            <span className="ml-2 text-sm font-normal text-[var(--brand-slate)]">
+              {inService.length} in service on {period.end}. Fix a start date, site or designation here and the
+              figures above update.
+            </span>
+          </summary>
+          <div className="px-6 pb-6">
+            <datalist id="report-sites">
+              {knownSites.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+            <datalist id="report-designations">
+              {knownDesignations.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+            {inService.length === 0 ? (
+              <EmptyBox>Nobody in service at this month end{site ? ` at ${site}` : ""}.</EmptyBox>
+            ) : (
+              <div className="overflow-x-auto max-h-[32rem] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[var(--brand-cream)] sticky top-0">
+                    <tr>
+                      <Th>Surname</Th>
+                      <Th>Names</Th>
+                      <Th>Designation</Th>
+                      <Th>Site</Th>
+                      <Th>Start date</Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--brand-line)]">
+                    {inService.map((e) => (
+                      <tr key={e.id}>
+                        <Td bold>
+                          <Link
+                            href={`/${slug}/hr/employees/${e.id}`}
+                            className="hover:text-[var(--brand-red)] hover:underline"
+                          >
+                            {e.surname}
+                          </Link>
+                        </Td>
+                        <Td>{e.names}</Td>
+                        <Td>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={e.id}
+                            name="designation"
+                            kind="text"
+                            value={e.designation}
+                            list="report-designations"
+                            width="w-44"
+                          />
+                        </Td>
+                        <Td>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={e.id}
+                            name="site"
+                            kind="text"
+                            value={e.site}
+                            list="report-sites"
+                            placeholder="Unassigned"
+                            width="w-40"
+                          />
+                        </Td>
+                        <Td>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={e.id}
+                            name="engaged_at"
+                            kind="date"
+                            value={e.engaged_at}
+                            max={lastDay.maxDate}
+                          />
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </details>
+      ) : null}
     </ReportShell>
   );
 }

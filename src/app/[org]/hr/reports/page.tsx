@@ -102,9 +102,15 @@ export default async function ReportsIndexPage({
           </h2>
           <ul className="mt-3 text-sm text-[var(--brand-slate)] space-y-2">
             <li>
-              <span className="font-bold text-[var(--brand-ink)]">Terminations.</span> On an
-              employee&rsquo;s page, under Leaving, record the last day and the reason
-              instead of deleting them.
+              <span className="font-bold text-[var(--brand-ink)]">Edit in either place.</span>{" "}
+              Every report reads the employee record. Change a date, reason or site on the
+              report page and the employee page shows it; change it on the employee page and
+              the report shows it.
+            </li>
+            <li>
+              <span className="font-bold text-[var(--brand-ink)]">Terminations.</span> Use
+              Record a leaver on the Staff movement report, or the Leaving card on the
+              employee page. Never delete someone who left.
             </li>
             <li>
               <span className="font-bold text-[var(--brand-ink)]">Start dates, dates of birth, retirement ages.</span>{" "}

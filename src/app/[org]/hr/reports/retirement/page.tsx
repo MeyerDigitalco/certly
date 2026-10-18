@@ -10,6 +10,9 @@ import {
 import { buildRetirement, type RetirementStatus } from "@/lib/reports/retirement";
 import ReportShell, { Section, Stat, Th, Td } from "@/components/reports/ReportShell";
 import { GroupedBars, StackedBar, CHART_COLOURS } from "@/lib/reports/charts";
+import InlineField from "@/components/reports/InlineField";
+import { isAdmin } from "@/lib/auth/roles";
+import { retirementAgeOptions } from "@/lib/reports/inline";
 
 export const metadata = { title: "Overdue retirement" };
 export const dynamic = "force-dynamic";
@@ -37,6 +40,8 @@ export default async function RetirementPage({
   const { counts, rows, missingDob, bySite } = report;
   const exportHref = `/${slug}/hr/reports/retirement/export?period=${periodKey(period)}${site ? `&site=${encodeURIComponent(site)}` : ""}`;
   const scope = site ? ` at ${site}` : "";
+  const canWrite = isAdmin(ctx.role);
+  const ageOptions = retirementAgeOptions(ctx.org.default_retirement_age);
 
   return (
     <ReportShell
@@ -164,13 +169,41 @@ export default async function RetirementPage({
                     <Td mono>{r.dateOfBirth}</Td>
                     <Td right>{r.age}</Td>
                     <Td right>
-                      {r.retirementAge}
-                      {r.ageIsDefault ? (
-                        <span className="text-[var(--brand-slate)] text-xs"> (default)</span>
+                      {canWrite ? (
+                        <InlineField
+                          orgId={ctx.org.id}
+                          slug={slug}
+                          employeeId={r.id}
+                          name="retirement_age"
+                          kind="select"
+                          value={r.ageIsDefault ? "" : r.retirementAge}
+                          options={ageOptions}
+                          placeholder={`Default (${ctx.org.default_retirement_age})`}
+                          width="w-32"
+                        />
                       ) : null}
+                      <span className={canWrite ? "hidden print:inline" : ""}>
+                        {r.retirementAge}
+                        {r.ageIsDefault ? (
+                          <span className="text-[var(--brand-slate)] text-xs"> (default)</span>
+                        ) : null}
+                      </span>
                     </Td>
                     <Td mono>{r.officialDate}</Td>
-                    <Td mono>{r.approvedDate ?? ""}</Td>
+                    <Td mono>
+                      {canWrite ? (
+                        <InlineField
+                          orgId={ctx.org.id}
+                          slug={slug}
+                          employeeId={r.id}
+                          name="approved_retirement_date"
+                          kind="date"
+                          value={r.approvedDate}
+                          min={r.officialDate}
+                        />
+                      ) : null}
+                      <span className={canWrite ? "hidden print:inline" : ""}>{r.approvedDate ?? ""}</span>
+                    </Td>
                     <Td className={statusClass(r.status)}>{r.statusLabel}</Td>
                     <Td right className={r.status === "overdue" ? "text-red-700 font-bold" : ""}>
                       {r.monthsLabel}
@@ -196,7 +229,10 @@ export default async function RetirementPage({
           <div className="space-y-3">
             <p className="text-sm text-[var(--brand-slate)]">
               {missingDob.length} {missingDob.length === 1 ? "person has" : "people have"} no date of
-              birth recorded. Open the employee and add it under Service and retirement.
+              birth recorded.
+              {canWrite
+                ? " Type it in the Fix column and the person is assessed on the next load."
+                : " An admin can add it on the employee form under Service and retirement."}
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -224,12 +260,24 @@ export default async function RetirementPage({
                       <Td>{m.designation}</Td>
                       <Td>{m.site}</Td>
                       <Td>
-                        <Link
-                          href={`/${slug}/hr/employees/${m.id}/edit`}
-                          className="text-[var(--brand-red)] text-xs font-bold hover:underline print:hidden"
-                        >
-                          Add date of birth
-                        </Link>
+                        {canWrite ? (
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={m.id}
+                            name="date_of_birth"
+                            kind="date"
+                            value={null}
+                            max={period.end}
+                          />
+                        ) : (
+                          <Link
+                            href={`/${slug}/hr/employees/${m.id}`}
+                            className="text-[var(--brand-red)] text-xs font-bold hover:underline print:hidden"
+                          >
+                            Open employee
+                          </Link>
+                        )}
                       </Td>
                     </tr>
                   ))}

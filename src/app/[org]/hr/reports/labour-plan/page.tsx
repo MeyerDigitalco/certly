@@ -17,6 +17,7 @@ import {
 } from "@/lib/reports/labour-plan";
 import ReportShell, { Section, Stat, Th, Td } from "@/components/reports/ReportShell";
 import { GroupedBars, StackedBar, CHART_COLOURS } from "@/lib/reports/charts";
+import InlinePlanned from "@/components/reports/InlinePlanned";
 
 export const metadata = { title: "Labour plan and onboarding" };
 export const dynamic = "force-dynamic";
@@ -156,7 +157,13 @@ export default async function LabourPlanPage({
                 </thead>
                 <tbody className="divide-y divide-[var(--brand-line)]">
                   {groups.map((g) => (
-                    <SiteRows key={g.site} site={g.site} rows={g.rows} subtotal={g.subtotal} />
+                    <SiteRows
+                      key={g.site}
+                      site={g.site}
+                      rows={g.rows}
+                      subtotal={g.subtotal}
+                      edit={canWrite ? { orgId: ctx.org.id, slug, effectiveFrom: period.start } : null}
+                    />
                   ))}
                   <tr className="font-bold bg-[var(--brand-cream)]">
                     <Td bold>Total</Td>
@@ -316,6 +323,7 @@ function SiteRows({
   site,
   rows,
   subtotal,
+  edit,
 }: {
   site: string;
   rows: Array<{
@@ -328,6 +336,7 @@ function SiteRows({
     projectedGap: number;
   }>;
   subtotal: PlanTotals;
+  edit: { orgId: string; slug: string; effectiveFrom: string } | null;
 }) {
   return (
     <>
@@ -335,7 +344,23 @@ function SiteRows({
         <tr key={r.key}>
           <Td bold>{i === 0 ? site : ""}</Td>
           <Td>{r.designation}</Td>
-          <Td right>{r.planned}</Td>
+          <Td right>
+            {edit ? (
+              <>
+                <InlinePlanned
+                  orgId={edit.orgId}
+                  slug={edit.slug}
+                  site={site}
+                  designation={r.designation}
+                  planned={r.planned}
+                  effectiveFrom={edit.effectiveFrom}
+                />
+                <span className="hidden print:inline">{r.planned}</span>
+              </>
+            ) : (
+              r.planned
+            )}
+          </Td>
           <Td right>{r.actual}</Td>
           <Td right className={r.variance < 0 ? "text-red-700 font-bold" : r.variance > 0 ? "text-amber-700" : ""}>
             {formatSigned(r.variance)}

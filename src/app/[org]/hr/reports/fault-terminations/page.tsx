@@ -16,6 +16,14 @@ import {
 } from "@/lib/reports/fault-terminations";
 import ReportShell, { Section, Stat, Th, Td } from "@/components/reports/ReportShell";
 import { GroupedBars, CHART_COLOURS } from "@/lib/reports/charts";
+import InlineField from "@/components/reports/InlineField";
+import RecordLeaver from "@/components/reports/RecordLeaver";
+import { isAdmin } from "@/lib/auth/roles";
+import {
+  defaultLastDay,
+  leaverCandidates,
+  terminationReasonOptions,
+} from "@/lib/reports/inline";
 
 export const metadata = { title: "Fault terminations" };
 export const dynamic = "force-dynamic";
@@ -45,6 +53,10 @@ export default async function FaultTerminationsPage({
 
   const scope = site ? ` at ${site}` : "";
   const ytdLabel = `YTD to ${period.label}`;
+  const canWrite = isAdmin(ctx.role);
+  const reasonOptions = terminationReasonOptions();
+  const leaverPool = canWrite ? leaverCandidates(employees, period.end, site) : [];
+  const lastDay = defaultLastDay(period.end);
   const changeTone = stats.change > 0 ? "red" : stats.change < 0 ? "green" : undefined;
   const nothingAtAll = !report.hasAnyTermination;
   const noFaultData =
@@ -212,11 +224,25 @@ export default async function FaultTerminationsPage({
         title="Fault leavers this month"
         subtitle={`Resignations, dismissals and abscondments with a last day in ${period.label}${scope}.`}
       >
+        {canWrite ? (
+          <div className="mb-4">
+            <RecordLeaver
+              orgId={ctx.org.id}
+              slug={slug}
+              employees={leaverPool}
+              defaultDate={lastDay.defaultDate}
+              maxDate={lastDay.maxDate}
+              faultOnly
+            />
+          </div>
+        ) : null}
         {leavers.length === 0 ? (
           <EmptyBox>
             No fault terminations in {period.label}
-            {scope}. If someone resigned, was dismissed or absconded, record the last day and the
-            reason on the employee page under Leaving.
+            {scope}. If someone resigned, was dismissed or absconded,
+            {canWrite
+              ? " use Record a leaver above or the employee page under Leaving."
+              : " an admin can record the last day and the reason on the employee page under Leaving."}
           </EmptyBox>
         ) : (
           <div className="overflow-x-auto">
@@ -245,8 +271,43 @@ export default async function FaultTerminationsPage({
                     <Td>{l.names}</Td>
                     <Td>{l.designation}</Td>
                     <Td>{l.site}</Td>
-                    <Td mono>{l.lastDay}</Td>
-                    <Td className="text-red-700 font-bold">{l.reasonLabel}</Td>
+                    <Td mono>
+                      {canWrite ? (
+                        <>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={l.id}
+                            name="terminated_at"
+                            kind="date"
+                            value={l.lastDay}
+                            max={lastDay.maxDate}
+                          />
+                          <span className="hidden print:inline">{l.lastDay}</span>
+                        </>
+                      ) : (
+                        l.lastDay
+                      )}
+                    </Td>
+                    <Td className="text-red-700 font-bold">
+                      {canWrite ? (
+                        <>
+                          <InlineField
+                            orgId={ctx.org.id}
+                            slug={slug}
+                            employeeId={l.id}
+                            name="termination_reason"
+                            kind="select"
+                            value={l.reason}
+                            options={reasonOptions}
+                            width="w-44"
+                          />
+                          <span className="hidden print:inline">{l.reasonLabel}</span>
+                        </>
+                      ) : (
+                        l.reasonLabel
+                      )}
+                    </Td>
                   </tr>
                 ))}
               </tbody>
