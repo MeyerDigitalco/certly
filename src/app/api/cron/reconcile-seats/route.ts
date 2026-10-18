@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
     const { count } = await admin
       .from("employees")
       .select("id", { count: "exact", head: true })
-      .eq("organisation_id", orgId);
+      .eq("organisation_id", orgId)
+      .is("terminated_at", null);
     const seats = count ?? 0;
     const quote = quoteFor(seats);
 

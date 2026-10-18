@@ -210,6 +210,65 @@ export default function EmployeeForm({
           defaultValue={initial?.designation ?? ""}
         />
       </div>
+
+      <div className="pt-4 border-t border-[var(--brand-line)]">
+        <p className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+          Service and retirement
+        </p>
+        <p className="mt-1 text-xs text-[var(--brand-slate)]">
+          These feed the monthly reports. Start date drives joiners and
+          turnover; date of birth and retirement age drive the overdue
+          retirement list.
+        </p>
+      </div>
+      <div className="grid md:grid-cols-2 gap-5">
+        <div>
+          <Label>Start date</Label>
+          <input
+            type="date"
+            name="engaged_at"
+            defaultValue={initial?.engaged_at ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3"
+          />
+        </div>
+        <div>
+          <Label>Date of birth</Label>
+          <input
+            type="date"
+            name="date_of_birth"
+            defaultValue={initial?.date_of_birth ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3"
+          />
+        </div>
+        <div>
+          <Label>Retirement age</Label>
+          <input
+            type="number"
+            name="retirement_age"
+            min={50}
+            max={75}
+            placeholder="Workspace default"
+            defaultValue={initial?.retirement_age ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3"
+          />
+          <p className="mt-1 text-xs text-[var(--brand-slate)]">
+            Leave blank to use the workspace default. Set it when a contract
+            or fund rule says otherwise.
+          </p>
+        </div>
+        <div>
+          <Label>Approved revised retirement date</Label>
+          <input
+            type="date"
+            name="approved_retirement_date"
+            defaultValue={initial?.approved_retirement_date ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3"
+          />
+          <p className="mt-1 text-xs text-[var(--brand-slate)]">
+            Only when an extension past the official date has been approved.
+          </p>
+        </div>
+      </div>
       <datalist id="site-options">
         {sites.map((s) => (
           <option key={s} value={s} />

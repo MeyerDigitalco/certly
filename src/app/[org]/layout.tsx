@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut, Settings, Users, Home, CalendarClock, MapPin, FileText, FolderLock, CreditCard, ScrollText } from "lucide-react";
+import { LogOut, Settings, Users, Home, CalendarClock, MapPin, FileText, FolderLock, CreditCard, ScrollText, BarChart3 } from "lucide-react";
 import { CertlyMark } from "@/components/CertlyMark";
 import { requireTenant } from "@/lib/tenant";
 import { isOwner } from "@/lib/auth/roles";
@@ -44,6 +44,7 @@ export default async function OrgLayout({
             <NavLink href={`/${ctx.org.slug}/hr/sites`} icon={MapPin}>Sites</NavLink>
             <NavLink href={`/${ctx.org.slug}/hr/documents`} icon={FolderLock}>Documents</NavLink>
             <NavLink href={`/${ctx.org.slug}/hr/safety-file`} icon={FileText}>Safety file</NavLink>
+            <NavLink href={`/${ctx.org.slug}/hr/reports`} icon={BarChart3}>Reports</NavLink>
             {isOwner(ctx.role) ? (
               <>
                 <NavLink href={`/${ctx.org.slug}/hr/audit`} icon={ScrollText}>Activity</NavLink>

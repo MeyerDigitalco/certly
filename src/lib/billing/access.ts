@@ -36,7 +36,8 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
   const { count } = await supabase
     .from("employees")
     .select("id", { count: "exact", head: true })
-    .eq("organisation_id", orgId);
+    .eq("organisation_id", orgId)
+    .is("terminated_at", null);
 
   const seats = count ?? 0;
 

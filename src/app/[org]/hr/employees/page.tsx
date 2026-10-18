@@ -13,14 +13,17 @@ export default async function EmployeesPage({
   searchParams,
 }: {
   params: Promise<{ org: string }>;
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ search?: string; show?: string }>;
 }) {
   const { org: slug } = await params;
   const ctx = await requireTenant(slug);
   const canWrite = isAdmin(ctx.role);
 
   const sp = await searchParams;
-  const employees = await listEmployees(ctx.org.id, sp.search);
+  const showAll = sp.show === "all";
+  const employees = await listEmployees(ctx.org.id, sp.search, {
+    includeTerminated: showAll,
+  });
 
   return (
     <div className="space-y-8">
@@ -31,8 +34,20 @@ export default async function EmployeesPage({
           </p>
           <h1 className="mt-2 text-4xl font-black">Staff master list</h1>
           <p className="mt-2 text-[var(--brand-slate)]">
-            {employees.length} employee{employees.length === 1 ? "" : "s"} on file.
+            {employees.length} employee{employees.length === 1 ? "" : "s"}{" "}
+            {showAll ? "on file, including people who have left." : "currently on the register."}
             {canWrite ? " Select rows to delete in bulk." : ""}
+          </p>
+          <p className="mt-1 text-xs">
+            {showAll ? (
+              <Link href={`/${slug}/hr/employees`} className="font-bold text-[var(--brand-red)] hover:underline">
+                Hide people who have left
+              </Link>
+            ) : (
+              <Link href={`/${slug}/hr/employees?show=all`} className="font-bold text-[var(--brand-slate)] hover:text-[var(--brand-red)]">
+                Include people who have left
+              </Link>
+            )}
           </p>
         </div>
         {canWrite ? (

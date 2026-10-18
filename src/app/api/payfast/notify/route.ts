@@ -151,7 +151,8 @@ export async function POST(request: NextRequest) {
   const { count: seatCount } = await admin
     .from("employees")
     .select("id", { count: "exact", head: true })
-    .eq("organisation_id", orgId);
+    .eq("organisation_id", orgId)
+    .is("terminated_at", null);
   const seats = seatCount ?? 0;
   const expectedRands = quoteFor(seats).totalCents / 100;
 

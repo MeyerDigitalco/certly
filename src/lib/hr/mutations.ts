@@ -10,6 +10,7 @@ import {
 import { isCompanyCategory } from "@/lib/hr/company-documents";
 import { assertWritable } from "@/lib/billing/access";
 import { normaliseTrainingTypeName } from "@/lib/hr/training-type-name";
+import { isTerminationReason } from "@/lib/hr/operations";
 
 // Tenant-scoped server actions for employees.
 //
@@ -43,7 +44,34 @@ const EmployeeSchema = z.object({
   site: z.string().trim().max(120).optional().or(z.literal("")),
   superior: z.string().trim().max(120).optional().or(z.literal("")),
   designation: z.string().trim().max(120).optional().or(z.literal("")),
+  date_of_birth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth is not a valid date")
+    .optional()
+    .or(z.literal("")),
+  engaged_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Start date is not a valid date")
+    .optional()
+    .or(z.literal("")),
+  retirement_age: z
+    .string()
+    .regex(/^\d{0,2}$/, "Retirement age must be a whole number")
+    .optional()
+    .or(z.literal("")),
+  approved_retirement_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Approved retirement date is not a valid date")
+    .optional()
+    .or(z.literal("")),
 });
+
+function intOrNull(v: unknown): number | null {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isInteger(n) ? n : null;
+}
 
 function fieldOrNull(v: unknown): string | null {
   if (v == null) return null;
@@ -94,7 +122,26 @@ function parseEmployee(formData: FormData) {
     site: formData.get("site") ?? "",
     superior: formData.get("superior") ?? "",
     designation: formData.get("designation") ?? "",
+    date_of_birth: formData.get("date_of_birth") ?? "",
+    engaged_at: formData.get("engaged_at") ?? "",
+    retirement_age: formData.get("retirement_age") ?? "",
+    approved_retirement_date: formData.get("approved_retirement_date") ?? "",
   });
+}
+
+function lifecycleFields(data: {
+  date_of_birth?: string;
+  engaged_at?: string;
+  retirement_age?: string;
+  approved_retirement_date?: string;
+}) {
+  const age = intOrNull(data.retirement_age);
+  return {
+    date_of_birth: fieldOrNull(data.date_of_birth),
+    engaged_at: fieldOrNull(data.engaged_at),
+    retirement_age: age !== null && age >= 50 && age <= 75 ? age : null,
+    approved_retirement_date: fieldOrNull(data.approved_retirement_date),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1220,6 +1267,7 @@ export async function createEmployee(
     site: fieldOrNull(parsed.data.site),
     superior: fieldOrNull(parsed.data.superior),
     designation: fieldOrNull(parsed.data.designation),
+    ...lifecycleFields(parsed.data),
   });
   if (error) return { ok: false, error: friendlyError(error) };
 
@@ -1264,6 +1312,7 @@ export async function updateEmployee(
       site: fieldOrNull(parsed.data.site),
       superior: fieldOrNull(parsed.data.superior),
       designation: fieldOrNull(parsed.data.designation),
+      ...lifecycleFields(parsed.data),
     })
     .eq("organisation_id", orgId)
     .eq("id", id);
@@ -1272,6 +1321,91 @@ export async function updateEmployee(
   revalidatePath(`/${slug}/hr`);
   revalidatePath(`/${slug}/hr/employees`);
   revalidatePath(`/${slug}/hr/employees/${id}`);
+  return { ok: true };
+}
+
+const TerminationSchema = z.object({
+  terminated_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Give the last day of service as a date"),
+  termination_reason: z.string().min(1, "Choose a reason"),
+  termination_notes: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+/**
+ * Record that an employee has left.
+ *
+ * The row stays. A terminated employee is history that the Staff Movement
+ * report is made of, and deleting them would delete the thing the client is
+ * paying to see. What changes is that they stop counting as a seat, drop out
+ * of the live register, and no longer appear in a safety file pack.
+ */
+export async function terminateEmployee(
+  orgId: string,
+  slug: string,
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = TerminationSchema.safeParse({
+    terminated_at: formData.get("terminated_at") ?? "",
+    termination_reason: formData.get("termination_reason") ?? "",
+    termination_notes: formData.get("termination_notes") ?? "",
+  });
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+  if (!isTerminationReason(parsed.data.termination_reason)) {
+    return { ok: false, error: "Choose a reason", field: "termination_reason" };
+  }
+
+  const guard = await assertAdmin(orgId);
+  if (guard) return { ok: false, error: guard };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("employees")
+    .update({
+      terminated_at: parsed.data.terminated_at,
+      termination_reason: parsed.data.termination_reason,
+      termination_notes: fieldOrNull(parsed.data.termination_notes),
+    })
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: friendlyError(error) };
+
+  revalidatePath(`/${slug}/hr`);
+  revalidatePath(`/${slug}/hr/employees`);
+  revalidatePath(`/${slug}/hr/employees/${id}`);
+  revalidatePath(`/${slug}/hr/reports`);
+  return { ok: true };
+}
+
+/** Undo a termination recorded in error. */
+export async function reinstateEmployee(
+  orgId: string,
+  slug: string,
+  id: string,
+): Promise<ActionResult> {
+  const guard = await assertAdmin(orgId);
+  if (guard) return { ok: false, error: guard };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("employees")
+    .update({
+      terminated_at: null,
+      termination_reason: null,
+      termination_notes: null,
+    })
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: friendlyError(error) };
+
+  revalidatePath(`/${slug}/hr`);
+  revalidatePath(`/${slug}/hr/employees`);
+  revalidatePath(`/${slug}/hr/employees/${id}`);
+  revalidatePath(`/${slug}/hr/reports`);
   return { ok: true };
 }
 
@@ -1587,5 +1721,357 @@ export async function setIdentityCertifiedAt(
   if (error) return { ok: false, error: friendlyError(error) };
 
   revalidateCertPaths(slug, employeeId);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Labour plans
+// ---------------------------------------------------------------------------
+
+const LabourPlanSchema = z.object({
+  site: z.string().trim().min(1, "Site is required").max(120),
+  designation: z.string().trim().min(1, "Designation is required").max(120),
+  planned: z
+    .string()
+    .regex(/^\d{1,5}$/, "Planned positions must be a whole number"),
+  effective_from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Effective from is not a valid date"),
+  notes: z.string().trim().max(300).optional().or(z.literal("")),
+});
+
+function revalidateReportPaths(slug: string): void {
+  revalidatePath(`/${slug}/hr/reports`);
+  revalidatePath(`/${slug}/hr/reports/staff-movement`);
+  revalidatePath(`/${slug}/hr/reports/labour-plan`);
+  revalidatePath(`/${slug}/hr/reports/labour-plan/plan`);
+}
+
+/**
+ * Create or replace the planned headcount for one site, designation and
+ * effective date. Writing the same key again replaces the number rather than
+ * stacking a duplicate, which is what a manager correcting a typo expects.
+ */
+export async function upsertLabourPlan(
+  orgId: string,
+  slug: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = LabourPlanSchema.safeParse({
+    site: formData.get("site") ?? "",
+    designation: formData.get("designation") ?? "",
+    planned: String(formData.get("planned") ?? "").trim(),
+    effective_from: formData.get("effective_from") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase.from("labour_plans").upsert(
+    {
+      organisation_id: orgId,
+      site: parsed.data.site,
+      designation: parsed.data.designation,
+      planned: Number(parsed.data.planned),
+      effective_from: parsed.data.effective_from,
+      notes: fieldOrNull(parsed.data.notes),
+      created_by: guard.userId,
+    },
+    { onConflict: "organisation_id,site,designation,effective_from" },
+  );
+  if (error) return { ok: false, error: error.message ?? "Could not save the plan." };
+
+  revalidateReportPaths(slug);
+  return { ok: true };
+}
+
+export async function deleteLabourPlan(
+  orgId: string,
+  slug: string,
+  id: string,
+): Promise<ActionResult> {
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("labour_plans")
+    .delete()
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message ?? "Could not delete the plan row." };
+
+  revalidateReportPaths(slug);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding candidates
+// ---------------------------------------------------------------------------
+
+const ONBOARDING_STATUS_VALUES = [
+  "screening",
+  "medical",
+  "teba",
+  "training",
+  "ready",
+  "engaged",
+  "unfit",
+  "withdrawn",
+] as const;
+
+const optionalDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Not a valid date")
+  .optional()
+  .or(z.literal(""));
+
+const OnboardingSchema = z.object({
+  surname: z.string().trim().min(1, "Surname is required").max(120),
+  names: z.string().trim().min(1, "First names are required").max(120),
+  id_number: z.string().trim().max(40).optional().or(z.literal("")),
+  id_type: z.enum(["sa_id", "passport", "work_permit", "asylum", "other"]).default("sa_id"),
+  designation: z.string().trim().min(1, "Designation is required").max(120),
+  site: z.string().trim().min(1, "Site is required").max(120),
+  status: z.enum(ONBOARDING_STATUS_VALUES),
+  screening_booked_at: optionalDate,
+  screened_at: optionalDate,
+  medical_booked_at: optionalDate,
+  medical_at: optionalDate,
+  rfac_at: optionalDate,
+  medical_status: z.enum(["fit", "unfit", "pending"]).optional().or(z.literal("")),
+  medical_review_at: optionalDate,
+  teba_done: z.string().optional(),
+  training_booked: z.string().optional(),
+  training_start_at: optionalDate,
+  expected_passout_at: optionalDate,
+  notes: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+function onboardingPayload(data: z.infer<typeof OnboardingSchema>) {
+  return {
+    surname: data.surname,
+    names: data.names,
+    id_number: fieldOrNull(data.id_number),
+    id_type: data.id_type,
+    designation: data.designation,
+    site: data.site,
+    status: data.status,
+    screening_booked_at: fieldOrNull(data.screening_booked_at),
+    screened_at: fieldOrNull(data.screened_at),
+    medical_booked_at: fieldOrNull(data.medical_booked_at),
+    medical_at: fieldOrNull(data.medical_at),
+    rfac_at: fieldOrNull(data.rfac_at),
+    medical_status: fieldOrNull(data.medical_status),
+    medical_review_at: fieldOrNull(data.medical_review_at),
+    teba_done: data.teba_done === "on" || data.teba_done === "true",
+    training_booked: data.training_booked === "on" || data.training_booked === "true",
+    training_start_at: fieldOrNull(data.training_start_at),
+    expected_passout_at: fieldOrNull(data.expected_passout_at),
+    notes: fieldOrNull(data.notes),
+  };
+}
+
+function parseOnboarding(formData: FormData) {
+  const read = (k: string) => formData.get(k) ?? "";
+  return OnboardingSchema.safeParse({
+    surname: read("surname"),
+    names: read("names"),
+    id_number: read("id_number"),
+    id_type: read("id_type") || "sa_id",
+    designation: read("designation"),
+    site: read("site"),
+    status: read("status") || "screening",
+    screening_booked_at: read("screening_booked_at"),
+    screened_at: read("screened_at"),
+    medical_booked_at: read("medical_booked_at"),
+    medical_at: read("medical_at"),
+    rfac_at: read("rfac_at"),
+    medical_status: read("medical_status"),
+    medical_review_at: read("medical_review_at"),
+    teba_done: read("teba_done"),
+    training_booked: read("training_booked"),
+    training_start_at: read("training_start_at"),
+    expected_passout_at: read("expected_passout_at"),
+    notes: read("notes"),
+  });
+}
+
+export async function createOnboardingCandidate(
+  orgId: string,
+  slug: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = parseOnboarding(formData);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase.from("onboarding_candidates").insert({
+    organisation_id: orgId,
+    ...onboardingPayload(parsed.data),
+    created_by: guard.userId,
+  });
+  if (error) return { ok: false, error: error.message ?? "Could not add the candidate." };
+
+  revalidatePath(`/${slug}/hr/reports/labour-plan`);
+  revalidatePath(`/${slug}/hr/reports/labour-plan/tracker`);
+  return { ok: true };
+}
+
+export async function updateOnboardingCandidate(
+  orgId: string,
+  slug: string,
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = parseOnboarding(formData);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("onboarding_candidates")
+    .update(onboardingPayload(parsed.data))
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message ?? "Could not update the candidate." };
+
+  revalidatePath(`/${slug}/hr/reports/labour-plan`);
+  revalidatePath(`/${slug}/hr/reports/labour-plan/tracker`);
+  return { ok: true };
+}
+
+export async function deleteOnboardingCandidate(
+  orgId: string,
+  slug: string,
+  id: string,
+): Promise<ActionResult> {
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("onboarding_candidates")
+    .delete()
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message ?? "Could not remove the candidate." };
+
+  revalidatePath(`/${slug}/hr/reports/labour-plan`);
+  revalidatePath(`/${slug}/hr/reports/labour-plan/tracker`);
+  return { ok: true };
+}
+
+/**
+ * Promote a candidate who has passed out onto the register as an employee.
+ * Creates the employee row from the candidate's details with today as the
+ * start date, links the two, and marks the candidate engaged. If the person
+ * is already on the register by document number, the existing row is linked
+ * rather than duplicated.
+ */
+export async function engageOnboardingCandidate(
+  orgId: string,
+  slug: string,
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const engagedAt = String(formData.get("engaged_at") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(engagedAt)) {
+    return { ok: false, error: "Give the start date", field: "engaged_at" };
+  }
+
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { data: candidate } = await supabase
+    .from("onboarding_candidates")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .eq("id", id)
+    .maybeSingle();
+  if (!candidate) return { ok: false, error: "That candidate is not in this workspace." };
+
+  if (!candidate.id_number) {
+    return {
+      ok: false,
+      error: "Add the candidate's document number before engaging them, so the register row is complete.",
+      field: "id_number",
+    };
+  }
+
+  const idCheck = validateIdentification(candidate.id_type, candidate.id_number);
+  if (!idCheck.valid) return { ok: false, error: idCheck.reason, field: "id_number" };
+  const idNumber = normaliseIdNumber(candidate.id_type, candidate.id_number);
+
+  let employeeId: string | null = null;
+  const { data: existing } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("organisation_id", orgId)
+    .eq("id_number", idNumber)
+    .maybeSingle();
+
+  if (existing?.id) {
+    employeeId = existing.id as string;
+    await supabase
+      .from("employees")
+      .update({
+        engaged_at: engagedAt,
+        terminated_at: null,
+        termination_reason: null,
+        termination_notes: null,
+        site: candidate.site,
+        designation: candidate.designation,
+      })
+      .eq("organisation_id", orgId)
+      .eq("id", employeeId);
+  } else {
+    const { data: created, error } = await supabase
+      .from("employees")
+      .insert({
+        organisation_id: orgId,
+        surname: candidate.surname,
+        names: candidate.names,
+        id_number: idNumber,
+        id_type: candidate.id_type,
+        site: candidate.site,
+        designation: candidate.designation,
+        engaged_at: engagedAt,
+      })
+      .select("id")
+      .maybeSingle();
+    if (error || !created?.id) {
+      return { ok: false, error: friendlyError(error ?? { message: "Could not create the employee." }) };
+    }
+    employeeId = created.id as string;
+  }
+
+  const { error: linkError } = await supabase
+    .from("onboarding_candidates")
+    .update({ status: "engaged", employee_id: employeeId })
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (linkError) return { ok: false, error: linkError.message };
+
+  revalidatePath(`/${slug}/hr`);
+  revalidatePath(`/${slug}/hr/employees`);
+  revalidateReportPaths(slug);
+  revalidatePath(`/${slug}/hr/reports/labour-plan/tracker`);
   return { ok: true };
 }

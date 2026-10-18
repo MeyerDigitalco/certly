@@ -27,6 +27,8 @@ const TENANT_TABLES = [
   "extraction_drafts",
   "register_rows",
   "invitations",
+  "labour_plans",
+  "onboarding_candidates",
 ];
 
 const KEYED_BY_OWN_ID = ["organisations"];

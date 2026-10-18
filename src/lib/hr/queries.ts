@@ -31,6 +31,7 @@ import { certifiedCopyStatus, recertifyBy } from "@/lib/hr/certified-copy";
 export async function listEmployees(
   orgId: string,
   search?: string,
+  options: { includeTerminated?: boolean } = {},
 ): Promise<Employee[]> {
   const supabase: any = await createClient();
   let query = supabase
@@ -38,6 +39,7 @@ export async function listEmployees(
     .select("*")
     .eq("organisation_id", orgId)
     .order("surname", { ascending: true });
+  if (!options.includeTerminated) query = query.is("terminated_at", null);
   if (search) {
     const term = search.replace(/[%,]/g, "").trim();
     if (term) {
@@ -74,6 +76,7 @@ export async function getSiteOptions(orgId: string): Promise<string[]> {
     .from("employees")
     .select("site")
     .eq("organisation_id", orgId)
+    .is("terminated_at", null)
     .not("site", "is", null);
   if (error) throw error;
   const rows = (data ?? []) as Array<{ site: string | null }>;
@@ -217,7 +220,8 @@ export async function getRenewals(
       .select(
         "id, surname, names, id_number, id_type, id_expiry, site, superior, id_file_path, id_certified_at",
       )
-      .eq("organisation_id", orgId),
+      .eq("organisation_id", orgId)
+      .is("terminated_at", null),
   ]);
   if (certResult.error) throw certResult.error;
   if (employeeResult.error) throw employeeResult.error;
@@ -367,7 +371,8 @@ export async function getSiteSummaries(
     supabase
       .from("employees")
       .select("id, site")
-      .eq("organisation_id", orgId),
+      .eq("organisation_id", orgId)
+      .is("terminated_at", null),
     supabase
       .from("certifications")
       .select("id, employee_id, expiry_date")
@@ -501,6 +506,7 @@ export async function getSafetyFileData(
       "id, surname, names, id_number, id_type, id_country, id_expiry, id_file_path, id_certified_at, site, designation, superior",
     )
     .eq("organisation_id", orgId)
+    .is("terminated_at", null)
     .order("surname", { ascending: true });
   if (options.site) employeeQuery = employeeQuery.eq("site", options.site);
 
@@ -755,7 +761,8 @@ export async function getRegisterPage(
   let query = supabase
     .from("register_rows")
     .select("*", { count: "exact" })
-    .eq("organisation_id", orgId);
+    .eq("organisation_id", orgId)
+    .is("terminated_at", null);
 
   const term = filters.search?.trim();
   if (term) {
@@ -858,6 +865,7 @@ export async function getRegisterKpis(
         .from("register_rows")
         .select("certification_id", { count: "exact", head: true })
         .eq("organisation_id", orgId)
+        .is("terminated_at", null)
         .eq("status", status),
     ),
   );

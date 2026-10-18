@@ -7,6 +7,7 @@ import { getEmployee, getEmployeeCertifications } from "@/lib/hr/queries";
 import { idTypeLabel, countryLabel } from "@/lib/validation/identification";
 import EmployeeCertsClient from "./EmployeeCertsClient";
 import IdentityFileCard from "./IdentityFileCard";
+import TerminationCard from "./TerminationCard";
 
 export const dynamic = "force-dynamic";
 
@@ -75,9 +76,20 @@ export default async function EmployeeDetailPage({
         <Info label="Superior" value={employee.superior} />
         <Info label="Designation" value={employee.designation} />
         <Info label="Document expiry" value={employee.id_expiry} />
+        <Info label="Start date" value={employee.engaged_at} />
+        <Info label="Date of birth" value={employee.date_of_birth} />
+        <Info
+          label="Retirement age"
+          value={
+            employee.retirement_age !== null
+              ? String(employee.retirement_age)
+              : `${ctx.org.default_retirement_age} (default)`
+          }
+        />
+        <Info label="Approved retirement date" value={employee.approved_retirement_date} />
       </section>
 
-      <section className="max-w-md">
+      <section className="grid md:grid-cols-2 gap-4 max-w-4xl">
         <IdentityFileCard
           orgId={ctx.org.id}
           slug={slug}
@@ -85,6 +97,12 @@ export default async function EmployeeDetailPage({
           hasFile={Boolean(employee.id_file_path)}
           documentLabel={idTypeLabel(employee.id_type)}
           certifiedAt={employee.id_certified_at}
+          canWrite={canWrite}
+        />
+        <TerminationCard
+          orgId={ctx.org.id}
+          slug={slug}
+          employee={employee}
           canWrite={canWrite}
         />
       </section>

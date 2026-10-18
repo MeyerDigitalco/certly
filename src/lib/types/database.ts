@@ -12,6 +12,7 @@ export interface Organisation {
   plan: Plan;
   trial_ends_at: string;
   due_soon_days: number;
+  default_retirement_age: number;
   subscription_status: SubscriptionStatus;
   payfast_token: string | null;
   current_period_end: string | null;
@@ -50,6 +51,16 @@ export interface Profile {
 }
 export type IdType = "sa_id" | "passport" | "work_permit" | "asylum" | "other";
 
+export type TerminationReason =
+  | "deceased"
+  | "retirement"
+  | "medical_incapacity"
+  | "fixed_term_end"
+  | "retrenchment"
+  | "resignation"
+  | "dismissal"
+  | "abscondment";
+
 export interface Employee {
   id: UUID;
   organisation_id: UUID;
@@ -64,6 +75,66 @@ export interface Employee {
   site: string | null;
   superior: string | null;
   designation: string | null;
+  date_of_birth: string | null;
+  engaged_at: string | null;
+  retirement_age: number | null;
+  approved_retirement_date: string | null;
+  terminated_at: string | null;
+  termination_reason: TerminationReason | null;
+  termination_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LabourPlan {
+  id: UUID;
+  organisation_id: UUID;
+  site: string;
+  designation: string;
+  planned: number;
+  effective_from: string;
+  notes: string | null;
+  created_by: UUID | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type OnboardingStatus =
+  | "screening"
+  | "medical"
+  | "teba"
+  | "training"
+  | "ready"
+  | "engaged"
+  | "unfit"
+  | "withdrawn";
+
+export type MedicalStatus = "fit" | "unfit" | "pending";
+
+export interface OnboardingCandidate {
+  id: UUID;
+  organisation_id: UUID;
+  surname: string;
+  names: string;
+  id_number: string | null;
+  id_type: IdType;
+  designation: string;
+  site: string;
+  status: OnboardingStatus;
+  screening_booked_at: string | null;
+  screened_at: string | null;
+  medical_booked_at: string | null;
+  medical_at: string | null;
+  rfac_at: string | null;
+  medical_status: MedicalStatus | null;
+  medical_review_at: string | null;
+  teba_done: boolean;
+  training_booked: boolean;
+  training_start_at: string | null;
+  expected_passout_at: string | null;
+  employee_id: UUID | null;
+  notes: string | null;
+  created_by: UUID | null;
   created_at: string;
   updated_at: string;
 }
