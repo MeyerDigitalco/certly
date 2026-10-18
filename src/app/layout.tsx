@@ -9,13 +9,17 @@ export const metadata: Metadata = {
     template: "%s - Certly",
   },
   description:
-    "Track every induction, medical, TEBA record and competency your crew needs on site. See who lapses before the gate does, and draft the safety file from the same register.",
+    "Track every induction, medical, TEBA record and competency your crew needs on site. See who lapses before the gate does, draft the safety file from the same register, and pull the monthly HR pack your client asks for in Excel.",
   applicationName: "Certly",
   keywords: [
     "safety file",
     "site access compliance",
     "training register",
     "certification tracking",
+    "monthly HR report",
+    "staff movement report",
+    "labour plan",
+    "staff turnover report",
     "OHS Act",
     "Mine Health and Safety Act",
     "contractor compliance",
@@ -30,7 +34,7 @@ export const metadata: Metadata = {
     url: SITE.domain,
     title: "Nobody gets turned away at the gate",
     description:
-      "Certly tracks every induction, medical and competency your crew needs on site, and drafts the safety file from the same register.",
+      "Certly tracks every induction, medical and competency your crew needs on site, drafts the safety file, and builds the monthly HR pack from the same register.",
   },
   twitter: {
     card: "summary_large_image",
@@ -60,7 +64,7 @@ const ORG_JSONLD = {
   operatingSystem: "Web",
   url: SITE.domain,
   description:
-    "Training and certification register for South African contractors, with safety file drafting.",
+    "Training and certification register for South African contractors, with safety file drafting and monthly HR reporting in Excel.",
   offers: {
     "@type": "Offer",
     price: "999",

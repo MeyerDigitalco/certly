@@ -185,6 +185,200 @@ export function SafetyFilePack() {
   );
 }
 
+interface ReportBar {
+  label: string;
+  a: number;
+  b: number;
+}
+
+interface ReportDemo {
+  key: string;
+  short: string;
+  title: string;
+  stamp: string;
+  blurb: string;
+  seriesA: string;
+  seriesB: string;
+  bars: ReportBar[];
+  lines: Array<{ left: string; right: string; tone?: "red" | "amber" | "green" }>;
+}
+
+const REPORT_DEMOS: ReportDemo[] = [
+  {
+    key: "movement",
+    short: "Staff movement",
+    title: "Staff movement",
+    stamp: "AUG 2026 · 3 SITES",
+    blurb:
+      "Who left and why, split by site and by fault or no fault, against who joined and what the approved plan says each site should carry.",
+    seriesA: "Approved plan",
+    seriesB: "In service",
+    bars: [
+      { label: "SHAFT 1", a: 48, b: 44 },
+      { label: "SHAFT 2", a: 31, b: 31 },
+      { label: "PLANT", a: 22, b: 17 },
+    ],
+    lines: [
+      { left: "Headcount at month end", right: "92" },
+      { left: "Joiners", right: "6", tone: "green" },
+      { left: "Leavers", right: "9", tone: "red" },
+      { left: "Turnover", right: "9.7%", tone: "amber" },
+    ],
+  },
+  {
+    key: "fault",
+    short: "Fault terminations",
+    title: "Fault terminations, year on year",
+    stamp: "YTD TO AUG 2026",
+    blurb:
+      "Resignations, dismissals and abscondments by month, this year against last. The chart a client uses to ask why March was bad.",
+    seriesA: "2025",
+    seriesB: "2026",
+    bars: [
+      { label: "FEB", a: 3, b: 2 },
+      { label: "MAR", a: 4, b: 9 },
+      { label: "APR", a: 2, b: 5 },
+      { label: "MAY", a: 5, b: 3 },
+    ],
+    lines: [
+      { left: "Resignations, year to date", right: "21" },
+      { left: "Dismissals, year to date", right: "7" },
+      { left: "Abscondments, year to date", right: "4" },
+      { left: "Change on same months last year", right: "+38%", tone: "red" },
+    ],
+  },
+  {
+    key: "retirement",
+    short: "Overdue retirement",
+    title: "Overdue retirement",
+    stamp: "AS AT 31 AUG 2026",
+    blurb:
+      "Everyone past their contractual retirement date, on an approved extension, retiring this month, or due inside six months.",
+    seriesA: "Overdue",
+    seriesB: "Due in 6 months",
+    bars: [
+      { label: "SHAFT 1", a: 3, b: 4 },
+      { label: "SHAFT 2", a: 1, b: 2 },
+      { label: "PLANT", a: 2, b: 1 },
+    ],
+    lines: [
+      { left: "Past retirement date", right: "6", tone: "red" },
+      { left: "On approved extension", right: "4", tone: "amber" },
+      { left: "Retiring this month", right: "2" },
+      { left: "No date of birth on file", right: "3", tone: "amber" },
+    ],
+  },
+  {
+    key: "plan",
+    short: "Labour plan",
+    title: "Labour plan and onboarding",
+    stamp: "AUG 2026 · TOP 3 ROLES",
+    blurb:
+      "Approved positions against people in service by designation, and the screening, medical, TEBA and training pipeline behind every gap.",
+    seriesA: "Planned",
+    seriesB: "In service",
+    bars: [
+      { label: "MINER", a: 24, b: 22 },
+      { label: "FITTER", a: 12, b: 12 },
+      { label: "RIGGER", a: 9, b: 6 },
+    ],
+    lines: [
+      { left: "Approved positions", right: "101" },
+      { left: "In service", right: "92" },
+      { left: "In the pipeline", right: "5", tone: "amber" },
+      { left: "Still unfilled", right: "4", tone: "red" },
+    ],
+  },
+];
+
+export function ReportBoard() {
+  const [key, setKey] = useState(REPORT_DEMOS[0].key);
+  const demo = REPORT_DEMOS.find((d) => d.key === key) ?? REPORT_DEMOS[0];
+  const max = Math.max(1, ...demo.bars.flatMap((b) => [b.a, b.b]));
+
+  return (
+    <div className="pack-wrap">
+      <div className="clients" role="group" aria-label="Choose a monthly report">
+        {REPORT_DEMOS.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            className="cbtn"
+            aria-pressed={d.key === key}
+            onClick={() => setKey(d.key)}
+          >
+            {d.short}
+          </button>
+        ))}
+      </div>
+
+      <div className="pack">
+        <div className="pack-h">
+          <span className="nm">{demo.title}</span>
+          <span className="pg">{demo.stamp}</span>
+        </div>
+
+        <div className="rep-b">
+          <p className="rep-blurb">{demo.blurb}</p>
+
+          <div className="rep-chart" role="img" aria-label={`${demo.seriesA} against ${demo.seriesB}`}>
+            {demo.bars.map((b) => (
+              <div className="rep-grp" key={b.label}>
+                <div className="rep-cols">
+                  <span className="rep-bar rep-a" style={{ height: `${(b.a / max) * 100}%` }}>
+                    <i>{b.a}</i>
+                  </span>
+                  <span className="rep-bar rep-b2" style={{ height: `${(b.b / max) * 100}%` }}>
+                    <i>{b.b}</i>
+                  </span>
+                </div>
+                <span className="rep-cat">{b.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="rep-key">
+            <span>
+              <span className="rep-sw rep-a" />
+              {demo.seriesA}
+            </span>
+            <span>
+              <span className="rep-sw rep-b2" />
+              {demo.seriesB}
+            </span>
+          </div>
+
+          <ul className="rep-lines">
+            {demo.lines.map((l) => (
+              <li key={l.left}>
+                <span>{l.left}</span>
+                <span
+                  className={
+                    l.tone === "red"
+                      ? "code c-red"
+                      : l.tone === "amber"
+                        ? "code c-amb"
+                        : l.tone === "green"
+                          ? "code c-grn"
+                          : "code"
+                  }
+                >
+                  {l.right}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="po-foot">
+          Download as Excel &nbsp;&middot;&nbsp; print to PDF &nbsp;&middot;&nbsp; built from
+          your register, not retyped
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PriceCalculator() {
   const [people, setPeople] = useState(50);
   const extra = Math.max(0, people - 50);

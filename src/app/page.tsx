@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CertlyMark } from "@/components/CertlyMark";
-import { GateBoard, SafetyFilePack, PriceCalculator } from "./LandingClient";
+import { GateBoard, SafetyFilePack, ReportBoard, PriceCalculator } from "./LandingClient";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -34,6 +34,7 @@ export default async function Home() {
         </div>
         <nav className="navset">
           <a href="#file">Safety files</a>
+          <a href="#reports">Monthly reports</a>
           <a href="#price">Pricing</a>
           <Link href="/contact">Contact</Link>
           <Link href="/login">Sign in</Link>
@@ -77,7 +78,8 @@ export default async function Home() {
               who lapses <b>before the gate does</b>.
             </p>
             <p className="lede" style={{ marginTop: 14 }}>
-              Drag the date. Watch your register break.
+              The same register drafts your safety file and builds the monthly HR
+              pack your client asks for. Drag the date. Watch your register break.
             </p>
             <div className="hero-actions">
               <Link className="btn btn-lg" href="/signup">
@@ -175,6 +177,78 @@ export default async function Home() {
 
       <div className="divider">
         <span className="no">SEC 03</span>
+        <span className="ti">Monthly reports</span>
+      </div>
+
+      <section className="pad band" id="reports">
+        <div className="hd">
+          <p className="kicker kicker-bare">The pack that is due again next month</p>
+          <h2>
+            Monthly reports,
+            <br />
+            not monthly
+            <br />
+            rework.
+          </h2>
+          <p>
+            Head office wants staff movement, turnover, overdue retirements and the
+            labour plan, every month, in their format. Most contractors rebuild that
+            in a spreadsheet from memory. Certly builds it from the register you are
+            already keeping, so the numbers in the pack are the numbers on the
+            ground.
+          </p>
+        </div>
+
+        <div className="fgrid">
+          <div>
+            <ReportBoard />
+          </div>
+          <ul className="checks">
+            <li>
+              <span className="xbox" />
+              <span>
+                <b>Four reports, one source.</b> Staff movement, fault terminations
+                year on year, overdue retirement, labour plan and onboarding. Pick a
+                month and they redraw themselves.
+              </span>
+            </li>
+            <li>
+              <span className="xbox" />
+              <span>
+                <b>Excel on every report.</b> One button gives you the workbook, with
+                the figures behind each chart on their own sheet, ready to paste into
+                the client&rsquo;s own deck.
+              </span>
+            </li>
+            <li>
+              <span className="xbox" />
+              <span>
+                <b>Fix the data where you find it.</b> A wrong reason or a missing
+                start date gets corrected on the report page itself, and the employee
+                record changes with it.
+              </span>
+            </li>
+            <li>
+              <span className="xbox" />
+              <span>
+                <b>People who leave stay on the record.</b> Record the last day and
+                the reason instead of deleting them, and the history is there next
+                year when someone asks why March was bad.
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="legend">
+          <span>Charts on screen</span>
+          <span>Numbers in Excel</span>
+          <span>Print to PDF for the file</span>
+          <span>No health or disciplinary records held</span>
+        </div>
+      </section>
+
+      <div className="divider">
+        <span className="no">SEC 04</span>
         <span className="ti">What you get on day one</span>
       </div>
 
@@ -205,6 +279,14 @@ export default async function Home() {
             </p>
           </div>
           <div className="cap">
+            <h3>The register remembers who left</h3>
+            <p>
+              Record a last day and a reason instead of deleting the person. Seats
+              stop being billed, the live register drops them, and twelve months
+              later the turnover report can still explain itself.
+            </p>
+          </div>
+          <div className="cap">
             <h3>POPIA handled at the schema</h3>
             <p>
               You are holding ID numbers and medical competencies. Every workspace
@@ -216,7 +298,7 @@ export default async function Home() {
       </section>
 
       <div className="divider">
-        <span className="no">SEC 04</span>
+        <span className="no">SEC 05</span>
         <span className="ti">Pricing</span>
       </div>
 
@@ -252,8 +334,15 @@ export default async function Home() {
             <li>
               <span className="xbox" />
               <span>
-                <b>Export whenever you want.</b> Your register and your files leave
-                in a format you can open without us.
+                <b>Every report included.</b> Safety files and the full monthly HR
+                pack are in the price, not a reporting add-on.
+              </span>
+            </li>
+            <li>
+              <span className="xbox" />
+              <span>
+                <b>Export whenever you want.</b> Your register, your workbooks and
+                your files leave in a format you can open without us.
               </span>
             </li>
             <li>
@@ -268,7 +357,7 @@ export default async function Home() {
       </section>
 
       <div className="divider">
-        <span className="no">SEC 05</span>
+        <span className="no">SEC 06</span>
         <span className="ti">Start</span>
       </div>
 
@@ -281,8 +370,9 @@ export default async function Home() {
           this month.
         </h2>
         <p>
-          Fourteen days, your own people, your own certificates. If it does not
-          surface something you did not already know about, walk away.
+          Fourteen days, your own people, your own certificates. Load the crew, pull
+          a monthly report, and if it does not surface something you did not already
+          know about, walk away.
         </p>
         <div className="hero-actions">
           <Link className="btn btn-lg" href="/signup">
