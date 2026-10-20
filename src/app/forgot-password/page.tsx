@@ -2,7 +2,10 @@ import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 
-export const metadata = { title: "Reset your password" };
+export const metadata = {
+  title: "Reset your password",
+  robots: { index: false, follow: false },
+};
 export const dynamic = "force-dynamic";
 
 export default async function ForgotPasswordPage({

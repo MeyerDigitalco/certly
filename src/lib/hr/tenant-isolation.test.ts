@@ -42,8 +42,8 @@ const KEYED_BY_OWN_ID = ["organisations"];
 const CROSS_ORG_BY_DESIGN: Record<string, string> = {
   "app/[org]/hr/settings/actions.ts::isSoleMembership":
     "Counts every workspace a user belongs to, which is the whole question it answers.",
-  "app/page.tsx::Home":
-    "Finds the signed-in user's own first workspace, scoped by their user_id.",
+  "app/workspace/page.tsx::WorkspacePage":
+    "Finds the signed-in user's own first workspace, scoped by their user_id. The workspace is the answer, not the question.",
   "app/invite/[token]/accept.ts::acceptInvitation":
     "Looks an invitation up by its token hash, which is the only identifier the invitee holds. The workspace is the answer, not the question.",
   "app/invite/[token]/accept.ts::declineInvitation":

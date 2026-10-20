@@ -5,7 +5,10 @@ import SetPasswordForm from "./SetPasswordForm";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Set your password" };
+export const metadata = {
+  title: "Set your password",
+  robots: { index: false, follow: false },
+};
 export const dynamic = "force-dynamic";
 
 export default async function SetPasswordPage({

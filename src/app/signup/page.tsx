@@ -2,7 +2,10 @@ import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
 import SignupForm from "./SignupForm";
 
-export const metadata = { title: "Create your workspace" };
+export const metadata = {
+  title: "Create your workspace",
+  robots: { index: false, follow: false },
+};
 
 export default function SignupPage() {
   return (

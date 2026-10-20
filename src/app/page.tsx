@@ -1,30 +1,15 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { CertlyMark } from "@/components/CertlyMark";
 import { GateBoard, SafetyFilePack, ReportBoard, PriceCalculator } from "./LandingClient";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * The marketing home page is deliberately static. A signed-in visitor never
+ * reaches it: the proxy redirects them to /workspace before this renders.
+ * That keeps the one page search engines actually index out of the database
+ * entirely.
+ */
 
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  const supabase: any = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    const { data: mem } = await supabase
-      .from("org_members")
-      .select("organisations(slug)")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    const slug = mem?.organisations?.slug as string | undefined;
-    if (slug) redirect(`/${slug}/hr`);
-  }
-
+export default function Home() {
   return (
     <div className="sheet">
       <header className="pad masthead">
@@ -35,6 +20,7 @@ export default async function Home() {
         <nav className="navset">
           <a href="#file">Safety files</a>
           <a href="#reports">Monthly reports</a>
+          <Link href="/guides">Guides</Link>
           <a href="#price">Pricing</a>
           <Link href="/contact">Contact</Link>
           <Link href="/login">Sign in</Link>
@@ -445,6 +431,7 @@ export default async function Home() {
             Certly
           </div>
           <p className="formref">
+            <Link href="/guides">Guides</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/privacy">Privacy</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/terms">Terms</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/refunds">Refunds</Link> &nbsp;&middot;&nbsp;{" "}

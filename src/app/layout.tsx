@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s - Certly",
   },
   description:
-    "Track every induction, medical, TEBA record and competency your crew needs on site. See who lapses before the gate does, draft the safety file from the same register, and pull the monthly HR pack, the EEA2 employment equity report and the SETA training report in Excel.",
+    "Certification register, safety files and monthly HR reporting for South African contractors. Pull the EEA2 and SETA training reports from the same register.",
   applicationName: "Certly",
   keywords: [
     "safety file",
@@ -48,6 +48,7 @@ export const metadata: Metadata = {
     title: "Nobody gets turned away at the gate",
     description:
       "Site access compliance and safety files for South African contractors.",
+    images: [`${SITE.domain}/opengraph-image`],
   },
   robots: {
     index: true,

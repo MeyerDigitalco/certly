@@ -7,7 +7,10 @@ import InviteButtons from "./InviteButtons";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const metadata = { title: "Invitation" };
+export const metadata = {
+  title: "Invitation",
+  robots: { index: false, follow: false },
+};
 export const dynamic = "force-dynamic";
 
 const ROLE_DESCRIPTION: Record<string, string> = {
