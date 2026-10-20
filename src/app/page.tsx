@@ -78,8 +78,9 @@ export default async function Home() {
               who lapses <b>before the gate does</b>.
             </p>
             <p className="lede" style={{ marginTop: 14 }}>
-              The same register drafts your safety file and builds the monthly HR
-              pack your client asks for. Drag the date. Watch your register break.
+              The same register drafts your safety file, builds the monthly HR pack
+              your client asks for, and fills in the employment equity and training
+              reports the law asks for. Drag the date. Watch your register break.
             </p>
             <div className="hero-actions">
               <Link className="btn btn-lg" href="/signup">
@@ -191,11 +192,12 @@ export default async function Home() {
             rework.
           </h2>
           <p>
-            Head office wants staff movement, turnover, overdue retirements and the
-            labour plan, every month, in their format. Most contractors rebuild that
-            in a spreadsheet from memory. Certly builds it from the register you are
-            already keeping, so the numbers in the pack are the numbers on the
-            ground.
+            Head office wants staff movement, turnover, absenteeism and the labour
+            plan every month. The Department of Employment and Labour wants your
+            EEA2 by January. Your SETA wants the training report by April. Most
+            contractors rebuild all of it in a spreadsheet from memory. Certly builds
+            it from the register you are already keeping, so the numbers in the pack
+            are the numbers on the ground.
           </p>
         </div>
 
@@ -207,9 +209,10 @@ export default async function Home() {
             <li>
               <span className="xbox" />
               <span>
-                <b>Four reports, one source.</b> Staff movement, fault terminations
-                year on year, overdue retirement, labour plan and onboarding. Pick a
-                month and they redraw themselves.
+                <b>Seven reports, one source.</b> Staff movement, fault terminations
+                year on year, overdue retirement, labour plan and onboarding, labour
+                unavailability, employment equity and skills development. Pick a month
+                and they redraw themselves.
               </span>
             </li>
             <li>
@@ -231,9 +234,48 @@ export default async function Home() {
             <li>
               <span className="xbox" />
               <span>
-                <b>People who leave stay on the record.</b> Record the last day and
-                the reason instead of deleting them, and the history is there next
-                year when someone asks why March was bad.
+                <b>The statutory ones are built too.</b> The EEA2 workforce profile
+                and the Annual Training Report come off the same register, so the two
+                submissions that carry a deadline stop being a January and April
+                scramble.
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="deadlines">
+          <div className="dl-h">What it saves you, and when it is due</div>
+          <ul>
+            <li>
+              <span className="dl-when">15 January</span>
+              <span className="dl-what">
+                <b>Employment equity report, EEA2</b>
+                <span>
+                  Compulsory for every employer with fifty or more people. Submitted on
+                  time, it is also what qualifies you for the compliance certificate a
+                  state contract asks for.
+                </span>
+              </span>
+            </li>
+            <li>
+              <span className="dl-when">30 April</span>
+              <span className="dl-what">
+                <b>Workplace Skills Plan and Annual Training Report</b>
+                <span>
+                  Miss your SETA deadline and the mandatory grant is gone, which is
+                  twenty percent of the skills levy you already paid. Certly has the
+                  training records; the report is a download.
+                </span>
+              </span>
+            </li>
+            <li>
+              <span className="dl-when">Every month</span>
+              <span className="dl-what">
+                <b>The client pack</b>
+                <span>
+                  Staff movement, fault terminations, overdue retirement, labour plan
+                  and unavailability, in a workbook you can hand over as it comes out.
+                </span>
               </span>
             </li>
           </ul>
@@ -284,6 +326,14 @@ export default async function Home() {
               Record a last day and a reason instead of deleting the person. Seats
               stop being billed, the live register drops them, and twelve months
               later the turnover report can still explain itself.
+            </p>
+          </div>
+          <div className="cap">
+            <h3>Your own documents expire too</h3>
+            <p>
+              A lapsed letter of good standing or B-BBEE certificate turns away the
+              whole crew, not one person. Company documents sit in the same renewal
+              list as the people, and in the same weekly email.
             </p>
           </div>
           <div className="cap">

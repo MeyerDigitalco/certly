@@ -289,6 +289,69 @@ const REPORT_DEMOS: ReportDemo[] = [
       { left: "Still unfilled", right: "4", tone: "red" },
     ],
   },
+  {
+    key: "unavailability",
+    short: "Unavailability",
+    title: "Labour unavailability",
+    stamp: "AUG 2026 · 3 SITES",
+    blurb:
+      "Days lost by reason and by site, availability against people in service. The figure a client uses to measure whether you turned up.",
+    seriesA: "Planned",
+    seriesB: "Unplanned",
+    bars: [
+      { label: "SHAFT 1", a: 38, b: 21 },
+      { label: "SHAFT 2", a: 22, b: 9 },
+      { label: "PLANT", a: 14, b: 12 },
+    ],
+    lines: [
+      { left: "Available man-days", right: "2 852" },
+      { left: "Days lost", right: "116", tone: "amber" },
+      { left: "Availability", right: "95.9%", tone: "green" },
+      { left: "Absent without leave", right: "14", tone: "red" },
+    ],
+  },
+  {
+    key: "equity",
+    short: "Employment equity",
+    title: "Employment equity, EEA2",
+    stamp: "1 SEP 2025 TO 31 AUG 2026",
+    blurb:
+      "The workforce profile by occupational level, population group and gender, with recruits and terminations for the reporting year. Due 15 January.",
+    seriesA: "Male",
+    seriesB: "Female",
+    bars: [
+      { label: "SKILLED", a: 31, b: 7 },
+      { label: "SEMI", a: 44, b: 11 },
+      { label: "UNSKILLED", a: 18, b: 6 },
+    ],
+    lines: [
+      { left: "People on the register", right: "117" },
+      { left: "Designated employer", right: "Yes", tone: "amber" },
+      { left: "Declarations captured", right: "109" },
+      { left: "Still to declare", right: "8", tone: "red" },
+    ],
+  },
+  {
+    key: "skills",
+    short: "Skills development",
+    title: "Annual Training Report",
+    stamp: "1 APR 2025 TO 31 MAR 2026",
+    blurb:
+      "The ATR built from the certificates you already hold, plus next year's Workplace Skills Plan. Due to your SETA 30 April, or the grant is gone.",
+    seriesA: "Trained this year",
+    seriesB: "Planned next year",
+    bars: [
+      { label: "SHORT", a: 64, b: 70 },
+      { label: "SKILLS PR", a: 12, b: 18 },
+      { label: "LEARNER", a: 4, b: 9 },
+    ],
+    lines: [
+      { left: "People trained", right: "80" },
+      { left: "Training spend", right: "R214 500" },
+      { left: "Spend on black employees", right: "R186 300", tone: "green" },
+      { left: "Learnerships and apprenticeships", right: "4" },
+    ],
+  },
 ];
 
 export function ReportBoard() {
@@ -298,7 +361,7 @@ export function ReportBoard() {
 
   return (
     <div className="pack-wrap">
-      <div className="clients" role="group" aria-label="Choose a monthly report">
+      <div className="clients clients-grid" role="group" aria-label="Choose a monthly report">
         {REPORT_DEMOS.map((d) => (
           <button
             key={d.key}

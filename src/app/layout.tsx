@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s - Certly",
   },
   description:
-    "Track every induction, medical, TEBA record and competency your crew needs on site. See who lapses before the gate does, draft the safety file from the same register, and pull the monthly HR pack your client asks for in Excel.",
+    "Track every induction, medical, TEBA record and competency your crew needs on site. See who lapses before the gate does, draft the safety file from the same register, and pull the monthly HR pack, the EEA2 employment equity report and the SETA training report in Excel.",
   applicationName: "Certly",
   keywords: [
     "safety file",
@@ -20,6 +20,13 @@ export const metadata: Metadata = {
     "staff movement report",
     "labour plan",
     "staff turnover report",
+    "employment equity report",
+    "EEA2",
+    "workplace skills plan",
+    "annual training report",
+    "WSP ATR",
+    "absenteeism report",
+    "letter of good standing",
     "OHS Act",
     "Mine Health and Safety Act",
     "contractor compliance",
@@ -34,7 +41,7 @@ export const metadata: Metadata = {
     url: SITE.domain,
     title: "Nobody gets turned away at the gate",
     description:
-      "Certly tracks every induction, medical and competency your crew needs on site, drafts the safety file, and builds the monthly HR pack from the same register.",
+      "Certly tracks every induction, medical and competency your crew needs on site, drafts the safety file, and builds the monthly HR pack, the EEA2 and the SETA training report from the same register.",
   },
   twitter: {
     card: "summary_large_image",
@@ -64,7 +71,7 @@ const ORG_JSONLD = {
   operatingSystem: "Web",
   url: SITE.domain,
   description:
-    "Training and certification register for South African contractors, with safety file drafting and monthly HR reporting in Excel.",
+    "Training and certification register for South African contractors, with safety file drafting, monthly HR reporting, employment equity EEA2 reporting and SETA skills development reporting in Excel.",
   offers: {
     "@type": "Offer",
     price: "999",
