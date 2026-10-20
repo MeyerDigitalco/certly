@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
-import { SITE } from "@/lib/site";
+import { SITE, jsonLd } from "@/lib/site";
 import { GUIDES, longDate, otherGuides, type Guide } from "@/lib/guides";
 
 /**
@@ -79,15 +79,15 @@ export default function GuideShell({
     <div className="sheet">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(faqJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd) }}
       />
 
       <header className="pad masthead">

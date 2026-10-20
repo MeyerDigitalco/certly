@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
-import { SITE } from "@/lib/site";
+import { SITE, jsonLd } from "@/lib/site";
 import { GUIDES, longDate } from "@/lib/guides";
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ export default function GuidesIndexPage() {
     <div className="sheet">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(LIST_JSONLD) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(LIST_JSONLD) }}
       />
 
       <header className="pad masthead">

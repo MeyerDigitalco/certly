@@ -10,11 +10,37 @@ type Result =
   | { ok: false; error: string };
 type SimpleResult = { ok: true } | { ok: false; error: string };
 
+/**
+ * A readable one-time password a person can retype off a phone screen.
+ * Every choice comes from the system CSPRNG: Math.random is seeded state a
+ * caller can observe and roll forward, which for a password reset would let
+ * someone who triggered one reset predict the next.
+ */
 function generateTempPassword(): string {
   const adjectives = ["Bright","Swift","Bold","Calm","Fair","Kind","Loyal","Sharp","Quiet","Solid","True","Warm","Wise","Brave","Quick","Steady","Fresh","Clear","Strong"];
   const nouns = ["River","Mountain","Ember","Beacon","Harbour","Anchor","Falcon","Meadow","Summit","Ridge","Valley","Torch","Cedar","Forest","Delta","Compass","Shield"];
-  const pick = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
-  return `${pick(adjectives)}-${pick(nouns)}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+  const pick = <T,>(a: T[]): T => a[randomInt(a.length)];
+  const digits = String(1000 + randomInt(9000));
+  return `${pick(adjectives)}-${pick(nouns)}-${digits}-${randomToken(4)}`;
+}
+
+/** Uniform integer in [0, max) from the system CSPRNG, without modulo bias. */
+function randomInt(max: number): number {
+  const limit = Math.floor(0xffffffff / max) * max;
+  const buf = new Uint32Array(1);
+  let v = 0;
+  do {
+    crypto.getRandomValues(buf);
+    v = buf[0];
+  } while (v >= limit);
+  return v % max;
+}
+
+function randomToken(length: number): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < length; i += 1) out += alphabet[randomInt(alphabet.length)];
+  return out;
 }
 
 /**

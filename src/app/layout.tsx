@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { SITE } from "@/lib/site";
+import { SITE, jsonLd } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -99,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(ORG_JSONLD) }}
         />
       </head>
       <body>

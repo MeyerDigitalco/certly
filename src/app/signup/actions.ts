@@ -28,6 +28,12 @@ const SignupSchema = z.object({
  * has_password is true from the start) plus an organisation and owner
  * membership via the provision_organisation RPC. On success it signs the
  * user in and redirects into their workspace.
+ *
+ * This endpoint is unauthenticated, so it must never touch the credentials
+ * of an account that already exists. If the address is already registered,
+ * the only way through is to be signed in as that account already; anything
+ * else is refused. Setting a password here for an existing address would
+ * hand any stranger who knows a customer's email address their account.
  */
 export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   const parsed = SignupSchema.safeParse({
@@ -63,15 +69,23 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
     (u: any) => (u.email ?? "").toLowerCase() === email,
   );
 
+  const supabase: any = await createClient();
+  const {
+    data: { user: sessionUser },
+  } = await supabase.auth.getUser();
+
   let userId: string;
+  let createdNewUser = false;
   if (existingUser) {
+    if (!sessionUser || sessionUser.id !== existingUser.id) {
+      return {
+        ok: false,
+        error:
+          "That email address already has a Certly account. Sign in first, then create the new workspace.",
+        field: "email",
+      };
+    }
     userId = existingUser.id;
-    const { error } = await admin.auth.admin.updateUserById(userId, {
-      password,
-      email_confirm: true,
-      user_metadata: { ...(existingUser.user_metadata ?? {}), has_password: true },
-    });
-    if (error) return { ok: false, error: error.message };
   } else {
     const { data: created, error } = await admin.auth.admin.createUser({
       email,
@@ -83,6 +97,7 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
       return { ok: false, error: error?.message ?? "Could not create account." };
     }
     userId = created.user.id;
+    createdNewUser = true;
   }
 
   const { error: provErr } = await admin.rpc("provision_organisation", {
@@ -92,12 +107,13 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   });
   if (provErr) {
     // Roll back a freshly-created user so a failed signup can be retried.
-    if (!existingUser) await admin.auth.admin.deleteUser(userId);
+    if (createdNewUser) await admin.auth.admin.deleteUser(userId);
     return { ok: false, error: provErr.message };
   }
 
-  const supabase: any = await createClient();
-  await supabase.auth.signInWithPassword({ email, password });
+  if (createdNewUser) {
+    await supabase.auth.signInWithPassword({ email, password });
+  }
 
   redirect(`/${slug}/hr`);
 }
