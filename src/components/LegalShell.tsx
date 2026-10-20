@@ -50,10 +50,10 @@ export default function LegalShell({
 
       <footer className="pad">
         <div className="foot-r">
-          <div className="wordmark" style={{ fontSize: 19 }}>
+          <Link href="/" className="wordmark" style={{ fontSize: 19 }}>
             <CertlyMark size={18} />
             Certly
-          </div>
+          </Link>
           <p className="formref">
             <Link href="/privacy">Privacy</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/terms">Terms</Link> &nbsp;&middot;&nbsp;{" "}

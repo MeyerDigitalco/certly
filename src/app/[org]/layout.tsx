@@ -23,7 +23,7 @@ export default async function OrgLayout({
       <header className="bg-white border-b border-[var(--brand-line)]">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href={`/${ctx.org.slug}/hr`} className="flex items-center gap-2">
               <CertlyMark size={24} />
               <span
                 className="text-xl tracking-tight"

@@ -13,10 +13,10 @@ export default function Home() {
   return (
     <div className="sheet">
       <header className="pad masthead">
-        <div className="wordmark">
+        <Link href="/" className="wordmark">
           <CertlyMark size={30} />
           Certly
-        </div>
+        </Link>
         <nav className="navset">
           <a href="#file">Safety files</a>
           <a href="#reports">Monthly reports</a>
@@ -426,10 +426,10 @@ export default function Home() {
 
       <footer className="pad">
         <div className="foot-r">
-          <div className="wordmark" style={{ fontSize: 19 }}>
+          <Link href="/" className="wordmark" style={{ fontSize: 19 }}>
             <CertlyMark size={20} />
             Certly
-          </div>
+          </Link>
           <p className="formref">
             <Link href="/guides">Guides</Link> &nbsp;&middot;&nbsp;{" "}
             <Link href="/privacy">Privacy</Link> &nbsp;&middot;&nbsp;{" "}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CertlyMark } from "@/components/CertlyMark";
 import { createClient } from "@/lib/supabase/server";
@@ -28,10 +29,10 @@ export default async function SetPasswordPage({
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 justify-center">
+        <Link href="/" className="flex items-center gap-2 justify-center">
           <CertlyMark size={26} />
           <span className="font-black text-xl tracking-tight">Certly</span>
-        </div>
+        </Link>
         <div className="mt-6 bg-white border border-[var(--brand-line)] rounded-2xl p-8">
           <h1 className="text-2xl font-black">
             {isChange ? "Change your password" : "Set your password"}

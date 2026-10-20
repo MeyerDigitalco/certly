@@ -13,10 +13,10 @@ export default function RootError({
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-md">
-        <div className="flex items-center gap-2 justify-center">
+        <Link href="/" className="flex items-center gap-2 justify-center">
           <CertlyMark size={26} />
           <span className="font-black text-xl tracking-tight">Certly</span>
-        </div>
+        </Link>
         <div className="mt-6 bg-white border border-[var(--brand-line)] rounded-2xl p-8">
           <h1 className="text-2xl font-black">Something broke on our side</h1>
           <p className="mt-2 text-sm text-[var(--brand-slate)]">

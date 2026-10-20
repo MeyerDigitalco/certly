@@ -1433,3 +1433,7 @@ body {
 .g-card .g-card-m b {
   color: var(--red);
 }
+.sheet a.wordmark {
+  text-decoration: none;
+  color: inherit;
+}
