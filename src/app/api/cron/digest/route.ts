@@ -3,7 +3,11 @@ import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { certStatus } from "@/lib/certifications/status";
 import { certifiedCopyStatus, recertifyBy } from "@/lib/hr/certified-copy";
-import type { RenewalBuckets, RenewalRow } from "@/lib/hr/queries";
+import {
+  companyDocumentRenewals,
+  type RenewalBuckets,
+  type RenewalRow,
+} from "@/lib/hr/queries";
 import { buildDigest, digestIsWorthSending } from "@/lib/email/digest";
 import { sendEmail, emailIsConfigured } from "@/lib/email/send";
 import { accessFor, isPlan, isSubscriptionStatus } from "@/lib/billing/plan";
@@ -145,7 +149,7 @@ async function renewalsFor(
   orgId: string,
   dueSoonDays: number,
 ): Promise<RenewalBuckets> {
-  const [certResult, employeeResult] = await Promise.all([
+  const [certResult, employeeResult, companyResult] = await Promise.all([
     admin
       .from("certifications")
       .select(
@@ -160,7 +164,13 @@ async function renewalsFor(
       .select(
         "id, surname, names, id_number, id_type, id_expiry, site, superior, id_file_path, id_certified_at",
       )
-      .eq("organisation_id", orgId),
+      .eq("organisation_id", orgId)
+      .is("terminated_at", null),
+    admin
+      .from("company_documents")
+      .select("id, title, category, expires_at")
+      .eq("organisation_id", orgId)
+      .not("expires_at", "is", null),
   ]);
 
   const horizon = Math.max(dueSoonDays, 30);
@@ -182,6 +192,7 @@ async function renewalsFor(
       expiry_date: c.expiry_date,
       days_left: daysLeft,
       certification_id: c.id,
+      document_id: null,
     });
   }
 
@@ -202,6 +213,7 @@ async function renewalsFor(
           expiry_date: p.id_expiry,
           days_left: daysLeft,
           certification_id: null,
+          document_id: null,
         });
       }
     }
@@ -224,9 +236,18 @@ async function renewalsFor(
           expiry_date: recertifyBy(p.id_certified_at) ?? "",
           days_left: copy.daysLeft,
           certification_id: null,
+          document_id: null,
         });
       }
     }
+  }
+
+  for (const row of companyDocumentRenewals(
+    (companyResult.data ?? []) as any[],
+    dueSoonDays,
+    horizon,
+  )) {
+    rows.push(row);
   }
 
   rows.sort(

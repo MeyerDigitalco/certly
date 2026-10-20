@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, CalendarDays, BookUser, FileBadge, Stamp } from "lucide-react";
+import { AlertTriangle, Clock, CalendarDays, BookUser, Building2, FileBadge, Stamp } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { getRenewals, type RenewalRow } from "@/lib/hr/queries";
 
@@ -26,11 +26,11 @@ export default async function RenewalsPage({
         </p>
         <h1 className="mt-2 text-4xl md:text-5xl font-black">What lapses next</h1>
         <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
-          Certifications, identity documents and certified copies together,
-          because a work permit running out stops a person at the gate exactly
-          like a lapsed induction does, and a certified copy older than three
-          months gets the whole pack sent back. Sorted by how little time is
-          left.
+          Certifications, identity documents, certified copies and the
+          company&rsquo;s own documents together, because a work permit running
+          out stops a person at the gate exactly like a lapsed induction does, and
+          an expired letter of good standing stops the whole crew. Sorted by how
+          little time is left.
         </p>
       </header>
 
@@ -130,19 +130,35 @@ function Group({
                   className="border-t border-[var(--brand-line)] hover:bg-[var(--brand-cream)]/50"
                 >
                   <Td>
-                    <Link
-                      href={`/${slug}/hr/employees/${r.employee_id}`}
-                      className="font-bold text-[var(--brand-ink)] hover:text-[var(--brand-red)]"
-                    >
-                      {r.surname}, {r.names}
-                    </Link>
-                    <span className="block font-mono text-[10px] text-[var(--brand-slate)]">
-                      {r.id_number}
-                    </span>
+                    {r.kind === "company_document" ? (
+                      <>
+                        <Link
+                          href={`/${slug}/hr/documents`}
+                          className="font-bold text-[var(--brand-ink)] hover:text-[var(--brand-red)]"
+                        >
+                          Company document
+                        </Link>
+                        <span className="block text-[10px] text-[var(--brand-slate)]">{r.names}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href={`/${slug}/hr/employees/${r.employee_id}`}
+                          className="font-bold text-[var(--brand-ink)] hover:text-[var(--brand-red)]"
+                        >
+                          {r.surname}, {r.names}
+                        </Link>
+                        <span className="block font-mono text-[10px] text-[var(--brand-slate)]">
+                          {r.id_number}
+                        </span>
+                      </>
+                    )}
                   </Td>
                   <Td>
                     <span className="inline-flex items-center gap-1.5">
-                      {r.kind === "document" ? (
+                      {r.kind === "company_document" ? (
+                        <Building2 size={12} className="text-[var(--brand-red)]" />
+                      ) : r.kind === "document" ? (
                         <BookUser size={12} className="text-[var(--brand-red)]" />
                       ) : r.kind === "certified_copy" ? (
                         <Stamp size={12} className="text-amber-700" />

@@ -14,6 +14,11 @@ import {
   ID_TYPES,
   ID_COUNTRIES,
 } from "@/lib/validation/identification";
+import {
+  GENDERS,
+  OCCUPATIONAL_LEVELS,
+  POPULATION_GROUPS,
+} from "@/lib/hr/operations";
 
 export default function EmployeeForm({
   orgId,
@@ -266,6 +271,105 @@ export default function EmployeeForm({
           />
           <p className="mt-1 text-xs text-[var(--brand-slate)]">
             Only when an extension past the official date has been approved.
+          </p>
+        </div>
+      </div>
+
+      <div className="pt-4 border-t border-[var(--brand-line)]">
+        <p className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+          Employment equity declaration
+        </p>
+        <p className="mt-1 text-xs text-[var(--brand-slate)]">
+          Only what the person declared on their EEA1 form. The Employment
+          Equity Act requires it from employers with 50 or more people and
+          POPIA permits it on that basis. Leave blank if the person has not
+          declared. Nothing here is guessed from a name or a photo.
+        </p>
+      </div>
+      <div className="grid md:grid-cols-2 gap-5">
+        <div>
+          <Label>Gender</Label>
+          <select
+            name="gender"
+            defaultValue={initial?.gender ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 bg-white"
+          >
+            <option value="">Not declared</option>
+            {GENDERS.map((g) => (
+              <option key={g.value} value={g.value}>
+                {g.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>Population group</Label>
+          <select
+            name="population_group"
+            defaultValue={initial?.population_group ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 bg-white"
+          >
+            <option value="">Not declared</option>
+            {POPULATION_GROUPS.map((g) => (
+              <option key={g.value} value={g.value}>
+                {g.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>Person with a disability</Label>
+          <select
+            name="disability"
+            defaultValue={
+              initial?.disability === true ? "yes" : initial?.disability === false ? "no" : ""
+            }
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 bg-white"
+          >
+            <option value="">Not declared</option>
+            <option value="no">No</option>
+            <option value="yes">Yes</option>
+          </select>
+          <p className="mt-1 text-xs text-[var(--brand-slate)]">
+            Yes or no only. The nature of a disability is never recorded.
+          </p>
+        </div>
+        <div>
+          <Label>Occupational level</Label>
+          <select
+            name="occupational_level"
+            defaultValue={initial?.occupational_level ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 bg-white"
+          >
+            <option value="">Not set</option>
+            {OCCUPATIONAL_LEVELS.map((l) => (
+              <option key={l.value} value={l.value}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>OFO code</Label>
+          <input
+            type="text"
+            name="ofo_code"
+            maxLength={12}
+            placeholder="Optional, for the WSP"
+            defaultValue={initial?.ofo_code ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3"
+          />
+        </div>
+        <div>
+          <Label>EEA1 declaration date</Label>
+          <input
+            type="date"
+            name="ee_declared_at"
+            defaultValue={initial?.ee_declared_at ?? ""}
+            className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3"
+          />
+          <p className="mt-1 text-xs text-[var(--brand-slate)]">
+            The date on the signed form you keep on file.
           </p>
         </div>
       </div>

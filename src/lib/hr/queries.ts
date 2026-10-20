@@ -168,7 +168,7 @@ export async function getCompanyDocument(
 // Renewals
 // ---------------------------------------------------------------------------
 
-export type RenewalKind = "certification" | "document" | "certified_copy";
+export type RenewalKind = "certification" | "document" | "certified_copy" | "company_document";
 
 export interface RenewalRow {
   key: string;
@@ -183,6 +183,7 @@ export interface RenewalRow {
   expiry_date: string;
   days_left: number;
   certification_id: string | null;
+  document_id: string | null;
 }
 
 export interface RenewalBuckets {
@@ -205,7 +206,7 @@ export async function getRenewals(
   dueSoonDays = 30,
 ): Promise<RenewalBuckets> {
   const supabase: any = await createClient();
-  const [certResult, employeeResult] = await Promise.all([
+  const [certResult, employeeResult, companyResult] = await Promise.all([
     supabase
       .from("certifications")
       .select(
@@ -222,9 +223,15 @@ export async function getRenewals(
       )
       .eq("organisation_id", orgId)
       .is("terminated_at", null),
+    supabase
+      .from("company_documents")
+      .select("id, title, category, expires_at")
+      .eq("organisation_id", orgId)
+      .not("expires_at", "is", null),
   ]);
   if (certResult.error) throw certResult.error;
   if (employeeResult.error) throw employeeResult.error;
+  if (companyResult.error) throw companyResult.error;
 
   const horizon = Math.max(dueSoonDays, 30);
   const rows: RenewalRow[] = [];
@@ -259,6 +266,7 @@ export async function getRenewals(
       expiry_date: c.expiry_date,
       days_left: daysLeft,
       certification_id: c.id,
+      document_id: null,
     });
   }
 
@@ -292,6 +300,7 @@ export async function getRenewals(
       expiry_date: p.id_expiry,
       days_left: daysLeft,
       certification_id: null,
+      document_id: null,
     });
   }
 
@@ -318,7 +327,16 @@ export async function getRenewals(
       expiry_date: recertifyBy(p.id_certified_at) ?? "",
       days_left: copy.daysLeft,
       certification_id: null,
+      document_id: null,
     });
+  }
+
+  for (const row of companyDocumentRenewals(
+    (companyResult.data ?? []) as Array<{ id: string; title: string; category: string; expires_at: string }>,
+    dueSoonDays,
+    horizon,
+  )) {
+    rows.push(row);
   }
 
   rows.sort(
@@ -340,6 +358,55 @@ const DOCUMENT_LABELS: Record<string, string> = {
   asylum: "Asylum document",
   other: "Identity document",
 };
+
+export const COMPANY_DOCUMENT_LABELS: Record<string, string> = {
+  policy: "Policy",
+  registration: "Registration",
+  tax: "Tax",
+  coida: "Compensation Fund",
+  insurance: "Insurance",
+  bbbee: "B-BBEE",
+  organogram: "Organogram",
+  appointment: "Appointment",
+  procedure: "Procedure",
+  other: "Company document",
+};
+
+/**
+ * An expired letter of good standing or B-BBEE certificate turns the whole
+ * crew away at the gate at once, which is worse than any single lapsed
+ * ticket. The company documents sit in the same renewal buckets as the
+ * people so nobody has to remember to check a second screen. Shared by the
+ * signed-in query and the digest cron so the two cannot drift.
+ */
+export function companyDocumentRenewals(
+  docs: Array<{ id: string; title: string; category: string; expires_at: string | null }>,
+  dueSoonDays: number,
+  horizon: number,
+): RenewalRow[] {
+  const out: RenewalRow[] = [];
+  for (const d of docs) {
+    if (!d.expires_at) continue;
+    const { daysLeft } = certStatus(d.expires_at, dueSoonDays);
+    if (daysLeft === null || daysLeft > horizon) continue;
+    out.push({
+      key: `company:${d.id}`,
+      kind: "company_document",
+      employee_id: "",
+      surname: "Company",
+      names: COMPANY_DOCUMENT_LABELS[d.category] ?? "Document",
+      id_number: "",
+      site: null,
+      superior: null,
+      label: d.title,
+      expiry_date: d.expires_at,
+      days_left: daysLeft,
+      certification_id: null,
+      document_id: d.id,
+    });
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Sites

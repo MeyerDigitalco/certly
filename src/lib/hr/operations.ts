@@ -1,4 +1,11 @@
-import type { TerminationReason } from "@/lib/types/database";
+import type {
+  AbsenceReason,
+  Gender,
+  OccupationalLevel,
+  PopulationGroup,
+  TerminationReason,
+  TrainingCategory,
+} from "@/lib/types/database";
 
 /**
  * Vocabulary shared by every HR operations report.
@@ -167,4 +174,172 @@ export const UNASSIGNED_SITE = "Unassigned";
 export function siteOf(site: string | null | undefined): string {
   const s = (site ?? "").trim();
   return s.length > 0 ? s : UNASSIGNED_SITE;
+}
+
+/* ------------------------------------------------------------------ */
+/* Employment equity                                                   */
+/* ------------------------------------------------------------------ */
+
+/** EEA2 column order: African, Coloured, Indian, White. */
+export const POPULATION_GROUPS: Array<{ value: PopulationGroup; label: string; short: string }> = [
+  { value: "african", label: "African", short: "A" },
+  { value: "coloured", label: "Coloured", short: "C" },
+  { value: "indian", label: "Indian", short: "I" },
+  { value: "white", label: "White", short: "W" },
+];
+
+export const GENDERS: Array<{ value: Gender; label: string }> = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+];
+
+/** EEA2 occupational levels, top row first, as the form prints them. */
+export const OCCUPATIONAL_LEVELS: Array<{ value: OccupationalLevel; label: string }> = [
+  { value: "top_management", label: "Top management" },
+  { value: "senior_management", label: "Senior management" },
+  { value: "professionally_qualified", label: "Professionally qualified and experienced specialists and mid-management" },
+  { value: "skilled_technical", label: "Skilled technical and academically qualified workers, junior management, supervisors, foremen and superintendents" },
+  { value: "semi_skilled", label: "Semi-skilled and discretionary decision making" },
+  { value: "unskilled", label: "Unskilled and defined decision making" },
+];
+
+export const OCCUPATIONAL_LEVEL_SHORT: Record<OccupationalLevel, string> = {
+  top_management: "Top management",
+  senior_management: "Senior management",
+  professionally_qualified: "Professionally qualified",
+  skilled_technical: "Skilled technical",
+  semi_skilled: "Semi-skilled",
+  unskilled: "Unskilled",
+};
+
+export function isPopulationGroup(v: unknown): v is PopulationGroup {
+  return POPULATION_GROUPS.some((g) => g.value === v);
+}
+
+export function isGender(v: unknown): v is Gender {
+  return GENDERS.some((g) => g.value === v);
+}
+
+export function isOccupationalLevel(v: unknown): v is OccupationalLevel {
+  return OCCUPATIONAL_LEVELS.some((l) => l.value === v);
+}
+
+/** Designated employer under the Employment Equity Act from 1 January 2025. */
+export const EE_DESIGNATED_THRESHOLD = 50;
+
+/**
+ * A person is a foreign national on the EEA2 when they are not a South
+ * African citizen. Certly does not ask for citizenship; the identity
+ * document type is the declared proxy and is what a site gate uses too.
+ */
+export function isForeignNational(idType: string | null | undefined): boolean {
+  return idType !== null && idType !== undefined && idType !== "sa_id";
+}
+
+/**
+ * The Employment Equity reporting year runs 1 September to 31 August; the
+ * online report is due 15 January after it closes. For a period ending
+ * inside a reporting year this returns that year's start and end.
+ */
+export function eeReportingYear(periodEnd: string): { start: string; end: string; label: string } {
+  const y = Number(periodEnd.slice(0, 4));
+  const m = Number(periodEnd.slice(5, 7));
+  const startYear = m >= 9 ? y : y - 1;
+  return {
+    start: `${startYear}-09-01`,
+    end: `${startYear + 1}-08-31`,
+    label: `1 Sep ${startYear} to 31 Aug ${startYear + 1}`,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Skills development                                                  */
+/* ------------------------------------------------------------------ */
+
+export const TRAINING_CATEGORIES: Array<{ value: TrainingCategory; label: string; atr: boolean }> = [
+  { value: "short_course", label: "Short course", atr: true },
+  { value: "skills_programme", label: "Skills programme", atr: true },
+  { value: "learnership", label: "Learnership", atr: true },
+  { value: "apprenticeship", label: "Apprenticeship", atr: true },
+  { value: "internship", label: "Internship", atr: true },
+  { value: "bursary", label: "Bursary", atr: true },
+  { value: "induction", label: "Site induction", atr: false },
+  { value: "other", label: "Other", atr: true },
+];
+
+export function isTrainingCategory(v: unknown): v is TrainingCategory {
+  return TRAINING_CATEGORIES.some((c) => c.value === v);
+}
+
+export function trainingCategoryLabel(c: TrainingCategory): string {
+  return TRAINING_CATEGORIES.find((x) => x.value === c)?.label ?? c;
+}
+
+/**
+ * SETA financial year: 1 April to 31 March. The year is named for the
+ * calendar year in which it ends, so seta_year 2027 is April 2026 to
+ * March 2027 and its WSP and ATR are due 30 April 2027.
+ */
+export function setaYearFor(iso: string): number {
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7));
+  return m >= 4 ? y + 1 : y;
+}
+
+export function setaYearRange(setaYear: number): { start: string; end: string; label: string; due: string } {
+  return {
+    start: `${setaYear - 1}-04-01`,
+    end: `${setaYear}-03-31`,
+    label: `1 Apr ${setaYear - 1} to 31 Mar ${setaYear}`,
+    due: `${setaYear}-04-30`,
+  };
+}
+
+export const SETAS: Array<{ value: string; label: string }> = [
+  { value: "MQA", label: "MQA (mining and minerals)" },
+  { value: "CETA", label: "CETA (construction)" },
+  { value: "merSETA", label: "merSETA (manufacturing, engineering)" },
+  { value: "EWSETA", label: "EWSETA (energy and water)" },
+  { value: "TETA", label: "TETA (transport)" },
+  { value: "CHIETA", label: "CHIETA (chemical)" },
+  { value: "Services SETA", label: "Services SETA" },
+  { value: "other", label: "Other" },
+];
+
+/* ------------------------------------------------------------------ */
+/* Absence                                                             */
+/* ------------------------------------------------------------------ */
+
+export const ABSENCE_REASONS: Array<{ value: AbsenceReason; label: string; planned: boolean }> = [
+  { value: "annual_leave", label: "Annual leave", planned: true },
+  { value: "study_leave", label: "Study leave", planned: true },
+  { value: "family_responsibility", label: "Family responsibility leave", planned: false },
+  { value: "sick_leave", label: "Sick leave", planned: false },
+  { value: "injury_on_duty", label: "Injury on duty", planned: false },
+  { value: "unpaid_leave", label: "Unpaid leave", planned: false },
+  { value: "absent_without_leave", label: "Absent without leave", planned: false },
+  { value: "other", label: "Other", planned: false },
+];
+
+export function isAbsenceReason(v: unknown): v is AbsenceReason {
+  return ABSENCE_REASONS.some((r) => r.value === v);
+}
+
+export function absenceReasonLabel(r: AbsenceReason): string {
+  return ABSENCE_REASONS.find((x) => x.value === r)?.label ?? r;
+}
+
+/** Calendar days of a spell that fall inside a window, inclusive both ends. */
+export function overlapDays(
+  startsOn: string,
+  endsOn: string,
+  windowStart: string,
+  windowEnd: string,
+  halfDay = false,
+): number {
+  const s = startsOn > windowStart ? startsOn : windowStart;
+  const e = endsOn < windowEnd ? endsOn : windowEnd;
+  if (e < s) return 0;
+  const days = Math.round((Date.parse(e) - Date.parse(s)) / 86_400_000) + 1;
+  return halfDay ? 0.5 : days;
 }

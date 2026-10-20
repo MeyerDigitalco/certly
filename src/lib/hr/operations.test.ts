@@ -12,6 +12,11 @@ import {
   officialRetirementDate,
   siteOf,
   UNASSIGNED_SITE,
+  eeReportingYear,
+  isForeignNational,
+  overlapDays,
+  setaYearFor,
+  setaYearRange,
 } from "./operations";
 
 describe("termination reasons", () => {
@@ -115,5 +120,49 @@ describe("siteOf", () => {
     expect(siteOf(null)).toBe(UNASSIGNED_SITE);
     expect(siteOf("   ")).toBe(UNASSIGNED_SITE);
     expect(siteOf("Impala 14 Shaft")).toBe("Impala 14 Shaft");
+  });
+});
+
+describe("employment equity and SETA calendars", () => {
+  it("places a period in the EE reporting year that runs September to August", () => {
+    expect(eeReportingYear("2026-10-31")).toEqual({
+      start: "2026-09-01",
+      end: "2027-08-31",
+      label: "1 Sep 2026 to 31 Aug 2027",
+    });
+    expect(eeReportingYear("2026-08-31").start).toBe("2025-09-01");
+    expect(eeReportingYear("2026-09-01").start).toBe("2026-09-01");
+  });
+
+  it("names the SETA year for the calendar year in which it ends", () => {
+    expect(setaYearFor("2026-03-31")).toBe(2026);
+    expect(setaYearFor("2026-04-01")).toBe(2027);
+    expect(setaYearRange(2027)).toEqual({
+      start: "2026-04-01",
+      end: "2027-03-31",
+      label: "1 Apr 2026 to 31 Mar 2027",
+      due: "2027-04-30",
+    });
+  });
+
+  it("treats every non SA ID holder as a foreign national on the EEA2", () => {
+    expect(isForeignNational("sa_id")).toBe(false);
+    expect(isForeignNational("passport")).toBe(true);
+    expect(isForeignNational("work_permit")).toBe(true);
+    expect(isForeignNational(null)).toBe(false);
+  });
+});
+
+describe("overlapDays", () => {
+  it("counts calendar days of a spell inside a window, inclusive", () => {
+    expect(overlapDays("2026-08-30", "2026-09-02", "2026-08-01", "2026-08-31")).toBe(2);
+    expect(overlapDays("2026-08-10", "2026-08-10", "2026-08-01", "2026-08-31")).toBe(1);
+    expect(overlapDays("2026-07-01", "2026-07-31", "2026-08-01", "2026-08-31")).toBe(0);
+    expect(overlapDays("2026-08-01", "2026-08-31", "2026-08-01", "2026-08-31")).toBe(31);
+  });
+
+  it("counts a half day as 0.5 when it falls in the window", () => {
+    expect(overlapDays("2026-08-10", "2026-08-10", "2026-08-01", "2026-08-31", true)).toBe(0.5);
+    expect(overlapDays("2026-09-10", "2026-09-10", "2026-08-01", "2026-08-31", true)).toBe(0);
   });
 });

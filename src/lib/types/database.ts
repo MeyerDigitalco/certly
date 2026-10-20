@@ -13,6 +13,9 @@ export interface Organisation {
   trial_ends_at: string;
   due_soon_days: number;
   default_retirement_age: number;
+  seta: string | null;
+  sdl_number: string | null;
+  ee_reference: string | null;
   subscription_status: SubscriptionStatus;
   payfast_token: string | null;
   current_period_end: string | null;
@@ -82,6 +85,72 @@ export interface Employee {
   terminated_at: string | null;
   termination_reason: TerminationReason | null;
   termination_notes: string | null;
+  gender: Gender | null;
+  population_group: PopulationGroup | null;
+  disability: boolean | null;
+  occupational_level: OccupationalLevel | null;
+  ofo_code: string | null;
+  ee_declared_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type Gender = "male" | "female";
+
+export type PopulationGroup = "african" | "coloured" | "indian" | "white";
+
+export type OccupationalLevel =
+  | "top_management"
+  | "senior_management"
+  | "professionally_qualified"
+  | "skilled_technical"
+  | "semi_skilled"
+  | "unskilled";
+
+export type TrainingCategory =
+  | "short_course"
+  | "skills_programme"
+  | "learnership"
+  | "apprenticeship"
+  | "internship"
+  | "bursary"
+  | "induction"
+  | "other";
+
+export interface TrainingPlan {
+  id: UUID;
+  organisation_id: UUID;
+  training_type_id: UUID;
+  seta_year: number;
+  site: string;
+  planned_count: number;
+  planned_cost_cents: number | null;
+  notes: string | null;
+  created_by: UUID | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AbsenceReason =
+  | "annual_leave"
+  | "sick_leave"
+  | "family_responsibility"
+  | "study_leave"
+  | "unpaid_leave"
+  | "absent_without_leave"
+  | "injury_on_duty"
+  | "other";
+
+export interface Absence {
+  id: UUID;
+  organisation_id: UUID;
+  employee_id: UUID;
+  starts_on: string;
+  ends_on: string;
+  reason: AbsenceReason;
+  half_day: boolean;
+  notes: string | null;
+  created_by: UUID | null;
   created_at: string;
   updated_at: string;
 }
@@ -170,6 +239,13 @@ export interface TrainingType {
   name: string;
   sort_order: number;
   active: boolean;
+  category: TrainingCategory;
+  hours: number | null;
+  cost_cents: number | null;
+  provider: string | null;
+  nqf_level: number | null;
+  accredited: boolean;
+  counts_for_atr: boolean;
 }
 export interface TrainingTypeWithUsage extends TrainingType {
   certification_count: number;

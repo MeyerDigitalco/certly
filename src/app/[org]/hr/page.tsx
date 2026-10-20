@@ -3,6 +3,8 @@ import { UserPlus, ScanLine, Upload, ChevronLeft, ChevronRight } from "lucide-re
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import {
+  companyDocumentRenewals,
+  getCompanyDocuments,
   getRegisterPage,
   getRegisterKpis,
   getSiteOptions,
@@ -10,6 +12,7 @@ import {
   type RegisterSortKey,
   type SortDirection,
 } from "@/lib/hr/queries";
+import { Building2 } from "lucide-react";
 import type { CertStatus } from "@/lib/types/database";
 import KpiCards from "@/components/hr/KpiCards";
 import RegisterFilters from "@/components/hr/RegisterFilters";
@@ -70,7 +73,7 @@ export default async function HrRegisterPage({
 
   const page = Math.max(0, Number(sp.page ?? "0") || 0);
 
-  const [register, kpis, sites, trainingTypes] = await Promise.all([
+  const [register, kpis, sites, trainingTypes, companyDocs] = await Promise.all([
     getRegisterPage(
       ctx.org.id,
       {
@@ -86,8 +89,15 @@ export default async function HrRegisterPage({
     getRegisterKpis(ctx.org.id),
     getSiteOptions(ctx.org.id),
     getTrainingTypes(ctx.org.id),
+    getCompanyDocuments(ctx.org.id),
   ]);
   const rows = register.rows;
+  const companyLapsing = companyDocumentRenewals(
+    companyDocs,
+    ctx.org.due_soon_days,
+    Math.max(ctx.org.due_soon_days, 30),
+  );
+  const companyExpired = companyLapsing.filter((d) => d.days_left < 0);
 
   return (
     <div className="space-y-8">
@@ -132,6 +142,35 @@ export default async function HrRegisterPage({
       </header>
 
       <KpiCards slug={slug} counts={kpis} active={statusFilter} />
+
+      {companyLapsing.length > 0 ? (
+        <Link
+          href={`/${slug}/hr/renewals`}
+          className={`flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 text-sm transition hover:border-[var(--brand-ink)] ${
+            companyExpired.length > 0
+              ? "bg-red-50 border-red-300"
+              : "bg-amber-50 border-amber-300"
+          }`}
+        >
+          <Building2
+            size={18}
+            className={companyExpired.length > 0 ? "text-red-700" : "text-amber-700"}
+          />
+          <span className="font-bold">
+            {companyExpired.length > 0
+              ? `${companyExpired.length} company ${companyExpired.length === 1 ? "document has" : "documents have"} expired`
+              : `${companyLapsing.length} company ${companyLapsing.length === 1 ? "document lapses" : "documents lapse"} soon`}
+          </span>
+          <span className="text-[var(--brand-slate)]">
+            {companyLapsing
+              .slice(0, 3)
+              .map((d) => d.label)
+              .join(", ")}
+            {companyLapsing.length > 3 ? ` and ${companyLapsing.length - 3} more` : ""}.
+            An expired letter of good standing or B-BBEE certificate stops the whole crew, not one person.
+          </span>
+        </Link>
+      ) : null}
 
       <RegisterFilters
         slug={slug}

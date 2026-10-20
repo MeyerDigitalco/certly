@@ -80,6 +80,19 @@ export default function PrivacyPage() {
         legitimate interest. Certly does not read, analyse or use the clinical
         content of those documents for any purpose of its own.
       </p>
+      <p>
+        Employment equity declarations: where you use the Employment Equity and
+        skills development reports, you may record a person&rsquo;s gender,
+        population group and whether they are a person with a disability, as the
+        person declared them on form EEA1. Population group and disability status
+        are special personal information under section 26 of POPIA. Processing is
+        permitted under section 27(1)(b) because the Employment Equity Act 55 of
+        1998 and the Skills Development Act 97 of 1998 require designated employers
+        to collect and report it. You are the responsible party for obtaining the
+        declaration; Certly stores only the declared values, never infers them, and
+        does not record the nature of any disability. Absence records hold the
+        category of leave and the dates, never a diagnosis or a medical certificate.
+      </p>
 
       <h3>5. Why we process it</h3>
       <p>

@@ -31,7 +31,8 @@ export function digestIsWorthSending(buckets: RenewalBuckets): boolean {
 }
 
 function line(row: RenewalRow): string {
-  const who = `${row.surname}, ${row.names}`;
+  const who =
+    row.kind === "company_document" ? `Company document (${row.names})` : `${row.surname}, ${row.names}`;
   const when =
     row.days_left < 0
       ? `${Math.abs(row.days_left)} days over`

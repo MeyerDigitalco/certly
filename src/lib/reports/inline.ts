@@ -1,5 +1,12 @@
 import type { ReportEmployee } from "@/lib/reports/data";
-import { TERMINATION_REASONS, siteOf } from "@/lib/hr/operations";
+import {
+  GENDERS,
+  OCCUPATIONAL_LEVEL_SHORT,
+  OCCUPATIONAL_LEVELS,
+  POPULATION_GROUPS,
+  TERMINATION_REASONS,
+  siteOf,
+} from "@/lib/hr/operations";
 import { todayIso } from "@/lib/certifications/status";
 import type { InlineOption } from "@/components/reports/InlineField";
 import type { LeaverCandidate } from "@/components/reports/RecordLeaver";
@@ -53,4 +60,29 @@ export function defaultLastDay(periodEnd: string): { defaultDate: string; maxDat
     defaultDate: periodEnd < today ? periodEnd : today,
     maxDate: today,
   };
+}
+
+/** Dropdown options for the EEA1 fields, blank meaning not declared. */
+export function genderOptions(): InlineOption[] {
+  return GENDERS.map((g) => ({ value: g.value, label: g.label }));
+}
+
+export function populationGroupOptions(): InlineOption[] {
+  return POPULATION_GROUPS.map((g) => ({ value: g.value, label: g.label }));
+}
+
+export function disabilityOptions(): InlineOption[] {
+  return [
+    { value: "no", label: "No" },
+    { value: "yes", label: "Yes" },
+  ];
+}
+
+export function occupationalLevelOptions(): InlineOption[] {
+  return OCCUPATIONAL_LEVELS.map((l) => ({ value: l.value, label: OCCUPATIONAL_LEVEL_SHORT[l.value] }));
+}
+
+/** The value an InlineField shows for a nullable boolean declaration. */
+export function disabilityValue(v: boolean | null | undefined): string {
+  return v === true ? "yes" : v === false ? "no" : "";
 }

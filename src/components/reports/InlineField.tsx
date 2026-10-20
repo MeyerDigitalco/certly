@@ -30,7 +30,13 @@ export interface InlineFieldProps {
     | "terminated_at"
     | "termination_reason"
     | "site"
-    | "designation";
+    | "designation"
+    | "gender"
+    | "population_group"
+    | "disability"
+    | "occupational_level"
+    | "ofo_code"
+    | "ee_declared_at";
   value: string | number | null;
   kind: "date" | "select" | "number" | "text";
   options?: InlineOption[];

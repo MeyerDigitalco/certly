@@ -126,6 +126,19 @@ export default async function SettingsPage({
           canWrite={isAdmin(ctx.role)}
           types={trainingTypes}
         />
+        {isAdmin(ctx.role) ? (
+          <p className="mt-4 text-sm text-[var(--brand-slate)]">
+            Category, hours, cost and provider per training type feed the Annual
+            Training Report.{" "}
+            <Link
+              href={`/${slug}/hr/reports/skills-development/types`}
+              className="text-[var(--brand-red)] font-bold hover:underline"
+            >
+              Set them here
+            </Link>
+            .
+          </p>
+        ) : null}
       </Section>
 
       <Section icon={Users}

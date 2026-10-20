@@ -16,6 +16,7 @@ function row(over: Partial<RenewalRow> = {}): RenewalRow {
     expiry_date: "2026-09-01",
     days_left: -7,
     certification_id: "c1",
+    document_id: null,
     ...over,
   };
 }

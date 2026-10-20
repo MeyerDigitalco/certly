@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil, ScanLine } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
+import { GENDERS, OCCUPATIONAL_LEVEL_SHORT, POPULATION_GROUPS } from "@/lib/hr/operations";
 import { isAdmin } from "@/lib/auth/roles";
 import { getEmployee, getEmployeeCertifications } from "@/lib/hr/queries";
 import { idTypeLabel, countryLabel } from "@/lib/validation/identification";
@@ -87,6 +88,21 @@ export default async function EmployeeDetailPage({
           }
         />
         <Info label="Approved retirement date" value={employee.approved_retirement_date} />
+        <Info label="Gender" value={GENDERS.find((g) => g.value === employee.gender)?.label ?? null} />
+        <Info
+          label="Population group"
+          value={POPULATION_GROUPS.find((g) => g.value === employee.population_group)?.label ?? null}
+        />
+        <Info
+          label="Disability"
+          value={employee.disability === true ? "Yes" : employee.disability === false ? "No" : null}
+        />
+        <Info
+          label="Occupational level"
+          value={employee.occupational_level ? OCCUPATIONAL_LEVEL_SHORT[employee.occupational_level] : null}
+        />
+        <Info label="OFO code" value={employee.ofo_code} />
+        <Info label="EEA1 declared" value={employee.ee_declared_at} />
       </section>
 
       <section className="grid md:grid-cols-2 gap-4 max-w-4xl">

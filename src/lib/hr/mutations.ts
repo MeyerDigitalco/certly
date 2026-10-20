@@ -10,7 +10,14 @@ import {
 import { isCompanyCategory } from "@/lib/hr/company-documents";
 import { assertWritable } from "@/lib/billing/access";
 import { normaliseTrainingTypeName } from "@/lib/hr/training-type-name";
-import { isTerminationReason } from "@/lib/hr/operations";
+import {
+  isAbsenceReason,
+  isGender,
+  isOccupationalLevel,
+  isPopulationGroup,
+  isTerminationReason,
+  isTrainingCategory,
+} from "@/lib/hr/operations";
 
 // Tenant-scoped server actions for employees.
 //
@@ -62,6 +69,26 @@ const EmployeeSchema = z.object({
   approved_retirement_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Approved retirement date is not a valid date")
+    .optional()
+    .or(z.literal("")),
+  gender: z.enum(["male", "female"]).optional().or(z.literal("")),
+  population_group: z.enum(["african", "coloured", "indian", "white"]).optional().or(z.literal("")),
+  disability: z.enum(["yes", "no"]).optional().or(z.literal("")),
+  occupational_level: z
+    .enum([
+      "top_management",
+      "senior_management",
+      "professionally_qualified",
+      "skilled_technical",
+      "semi_skilled",
+      "unskilled",
+    ])
+    .optional()
+    .or(z.literal("")),
+  ofo_code: z.string().trim().max(12, "OFO code is too long").optional().or(z.literal("")),
+  ee_declared_at: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Declaration date is not a valid date")
     .optional()
     .or(z.literal("")),
 });
@@ -126,6 +153,12 @@ function parseEmployee(formData: FormData) {
     engaged_at: formData.get("engaged_at") ?? "",
     retirement_age: formData.get("retirement_age") ?? "",
     approved_retirement_date: formData.get("approved_retirement_date") ?? "",
+    gender: formData.get("gender") ?? "",
+    population_group: formData.get("population_group") ?? "",
+    disability: formData.get("disability") ?? "",
+    occupational_level: formData.get("occupational_level") ?? "",
+    ofo_code: formData.get("ofo_code") ?? "",
+    ee_declared_at: formData.get("ee_declared_at") ?? "",
   });
 }
 
@@ -134,6 +167,12 @@ function lifecycleFields(data: {
   engaged_at?: string;
   retirement_age?: string;
   approved_retirement_date?: string;
+  gender?: string;
+  population_group?: string;
+  disability?: string;
+  occupational_level?: string;
+  ofo_code?: string;
+  ee_declared_at?: string;
 }) {
   const age = intOrNull(data.retirement_age);
   return {
@@ -141,6 +180,12 @@ function lifecycleFields(data: {
     engaged_at: fieldOrNull(data.engaged_at),
     retirement_age: age !== null && age >= 50 && age <= 75 ? age : null,
     approved_retirement_date: fieldOrNull(data.approved_retirement_date),
+    gender: fieldOrNull(data.gender),
+    population_group: fieldOrNull(data.population_group),
+    disability: data.disability === "yes" ? true : data.disability === "no" ? false : null,
+    occupational_level: fieldOrNull(data.occupational_level),
+    ofo_code: fieldOrNull(data.ofo_code),
+    ee_declared_at: fieldOrNull(data.ee_declared_at),
   };
 }
 
@@ -1386,9 +1431,10 @@ const LIFECYCLE_DATE_FIELDS = [
   "engaged_at",
   "approved_retirement_date",
   "terminated_at",
+  "ee_declared_at",
 ] as const;
 
-const LIFECYCLE_TEXT_FIELDS = ["site", "designation"] as const;
+const LIFECYCLE_TEXT_FIELDS = ["site", "designation", "ofo_code"] as const;
 
 /**
  * Patch one or more lifecycle fields on an employee straight from a report
@@ -1403,7 +1449,7 @@ export async function updateEmployeeLifecycle(
   id: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  const patch: Record<string, string | number | null> = {};
+  const patch: Record<string, string | number | boolean | null> = {};
 
   for (const key of LIFECYCLE_DATE_FIELDS) {
     if (!formData.has(key)) continue;
@@ -1432,6 +1478,33 @@ export async function updateEmployeeLifecycle(
     } else {
       patch.retirement_age = null;
     }
+  }
+
+  if (formData.has("gender")) {
+    const v = String(formData.get("gender") ?? "").trim();
+    if (v && !isGender(v)) return { ok: false, error: "Choose a gender", field: "gender" };
+    patch.gender = v || null;
+  }
+
+  if (formData.has("population_group")) {
+    const v = String(formData.get("population_group") ?? "").trim();
+    if (v && !isPopulationGroup(v)) {
+      return { ok: false, error: "Choose a population group", field: "population_group" };
+    }
+    patch.population_group = v || null;
+  }
+
+  if (formData.has("occupational_level")) {
+    const v = String(formData.get("occupational_level") ?? "").trim();
+    if (v && !isOccupationalLevel(v)) {
+      return { ok: false, error: "Choose an occupational level", field: "occupational_level" };
+    }
+    patch.occupational_level = v || null;
+  }
+
+  if (formData.has("disability")) {
+    const v = String(formData.get("disability") ?? "").trim();
+    patch.disability = v === "yes" ? true : v === "no" ? false : null;
   }
 
   if (formData.has("termination_reason")) {
@@ -2177,5 +2250,385 @@ export async function engageOnboardingCandidate(
   revalidatePath(`/${slug}/hr/employees`);
   revalidateReportPaths(slug);
   revalidatePath(`/${slug}/hr/reports/labour-plan/tracker`);
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Absences                                                            */
+/* ------------------------------------------------------------------ */
+
+const AbsenceSchema = z.object({
+  starts_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the first day"),
+  ends_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Give the last day"),
+  reason: z.string().min(1, "Choose a reason"),
+  half_day: z.string().optional(),
+  notes: z.string().trim().max(300, "Note is too long").optional().or(z.literal("")),
+});
+
+function parseAbsence(formData: FormData) {
+  const starts = String(formData.get("starts_on") ?? "").trim();
+  const ends = String(formData.get("ends_on") ?? "").trim() || starts;
+  return AbsenceSchema.safeParse({
+    starts_on: starts,
+    ends_on: ends,
+    reason: formData.get("reason") ?? "",
+    half_day: formData.get("half_day") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+}
+
+function absencePayload(data: z.infer<typeof AbsenceSchema>) {
+  const halfDay = data.half_day === "on" || data.half_day === "true";
+  return {
+    starts_on: data.starts_on,
+    ends_on: halfDay ? data.starts_on : data.ends_on,
+    reason: data.reason,
+    half_day: halfDay,
+    notes: fieldOrNull(data.notes),
+  };
+}
+
+function revalidateAbsencePaths(slug: string): void {
+  revalidatePath(`/${slug}/hr/reports`);
+  revalidatePath(`/${slug}/hr/reports/labour-unavailability`);
+  revalidatePath(`/${slug}/hr/reports/labour-unavailability/log`);
+}
+
+/**
+ * Record one spell of absence for one or more people. The form carries
+ * employee_id once for a single person or several times for a crew that
+ * was all off on the same day. Every id is checked against the workspace
+ * before anything is written.
+ */
+export async function createAbsence(
+  orgId: string,
+  slug: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = parseAbsence(formData);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+  if (!isAbsenceReason(parsed.data.reason)) {
+    return { ok: false, error: "Choose a reason", field: "reason" };
+  }
+  if (parsed.data.ends_on < parsed.data.starts_on) {
+    return { ok: false, error: "The last day is before the first day", field: "ends_on" };
+  }
+  const ids = formData
+    .getAll("employee_id")
+    .map((v) => String(v).trim())
+    .filter((v) => /^[0-9a-f-]{36}$/i.test(v));
+  if (ids.length === 0) {
+    return { ok: false, error: "Choose at least one person", field: "employee_id" };
+  }
+
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { data: owned, error: ownErr } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("organisation_id", orgId)
+    .in("id", ids);
+  if (ownErr) return { ok: false, error: ownErr.message ?? "Could not check the people." };
+  const ownedIds = new Set((owned ?? []).map((r: { id: string }) => r.id));
+  if (ids.some((id) => !ownedIds.has(id))) {
+    return { ok: false, error: "One of the people is not on this register.", field: "employee_id" };
+  }
+
+  const payload = absencePayload(parsed.data);
+  const { error } = await supabase.from("absences").insert(
+    ids.map((employee_id) => ({
+      organisation_id: orgId,
+      employee_id,
+      ...payload,
+      created_by: guard.userId,
+    })),
+  );
+  if (error) return { ok: false, error: error.message ?? "Could not record the absence." };
+
+  revalidateAbsencePaths(slug);
+  return { ok: true };
+}
+
+export async function updateAbsence(
+  orgId: string,
+  slug: string,
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = parseAbsence(formData);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+  if (!isAbsenceReason(parsed.data.reason)) {
+    return { ok: false, error: "Choose a reason", field: "reason" };
+  }
+  if (parsed.data.ends_on < parsed.data.starts_on) {
+    return { ok: false, error: "The last day is before the first day", field: "ends_on" };
+  }
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("absences")
+    .update(absencePayload(parsed.data))
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message ?? "Could not save the absence." };
+
+  revalidateAbsencePaths(slug);
+  return { ok: true };
+}
+
+export async function deleteAbsence(
+  orgId: string,
+  slug: string,
+  id: string,
+): Promise<ActionResult> {
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("absences")
+    .delete()
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message ?? "Could not remove the absence." };
+
+  revalidateAbsencePaths(slug);
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Skills development: training type details and the Workplace Skills Plan */
+/* ------------------------------------------------------------------ */
+
+function revalidateSkillsPaths(slug: string): void {
+  revalidatePath(`/${slug}/hr/reports`);
+  revalidatePath(`/${slug}/hr/reports/skills-development`);
+  revalidatePath(`/${slug}/hr/reports/skills-development/plan`);
+  revalidatePath(`/${slug}/hr/reports/skills-development/types`);
+  revalidatePath(`/${slug}/hr/settings`);
+}
+
+function randsToCents(v: unknown): number | null | "invalid" {
+  const s = String(v ?? "").trim().replace(/[R,\s]/g, "");
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return "invalid";
+  return Math.round(n * 100);
+}
+
+/**
+ * What the SETA asks about each course: category, hours, cost, provider,
+ * NQF level, accreditation, and whether it counts as training at all.
+ * Only the keys present in the form are changed.
+ */
+export async function updateTrainingTypeDetails(
+  orgId: string,
+  slug: string,
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const patch: Record<string, string | number | boolean | null> = {};
+
+  if (formData.has("category")) {
+    const v = String(formData.get("category") ?? "").trim();
+    if (!isTrainingCategory(v)) return { ok: false, error: "Choose a category", field: "category" };
+    patch.category = v;
+  }
+  if (formData.has("hours")) {
+    const s = String(formData.get("hours") ?? "").trim();
+    if (s) {
+      const n = Number(s);
+      if (!Number.isFinite(n) || n < 0 || n > 9999) {
+        return { ok: false, error: "Hours must be a number", field: "hours" };
+      }
+      patch.hours = Math.round(n * 10) / 10;
+    } else {
+      patch.hours = null;
+    }
+  }
+  if (formData.has("cost")) {
+    const c = randsToCents(formData.get("cost"));
+    if (c === "invalid") return { ok: false, error: "Cost must be a number in rands", field: "cost" };
+    patch.cost_cents = c;
+  }
+  if (formData.has("provider")) {
+    const v = String(formData.get("provider") ?? "").trim();
+    if (v.length > 160) return { ok: false, error: "Provider name is too long", field: "provider" };
+    patch.provider = v || null;
+  }
+  if (formData.has("nqf_level")) {
+    const s = String(formData.get("nqf_level") ?? "").trim();
+    if (s) {
+      const n = Number(s);
+      if (!Number.isInteger(n) || n < 1 || n > 10) {
+        return { ok: false, error: "NQF level is 1 to 10", field: "nqf_level" };
+      }
+      patch.nqf_level = n;
+    } else {
+      patch.nqf_level = null;
+    }
+  }
+  if (formData.has("accredited")) {
+    const v = String(formData.get("accredited") ?? "");
+    patch.accredited = v === "on" || v === "true" || v === "yes";
+  }
+  if (formData.has("counts_for_atr")) {
+    const v = String(formData.get("counts_for_atr") ?? "");
+    patch.counts_for_atr = v === "on" || v === "true" || v === "yes";
+  }
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("training_types")
+    .update(patch)
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: friendlyTypeError(error) };
+
+  revalidateSkillsPaths(slug);
+  return { ok: true };
+}
+
+const TrainingPlanSchema = z.object({
+  training_type_id: z.string().uuid("Choose a course"),
+  seta_year: z.string().regex(/^\d{4}$/, "Give the SETA year"),
+  site: z.string().trim().max(120).optional().or(z.literal("")),
+  planned_count: z.string().regex(/^\d{1,5}$/, "Planned people must be a whole number"),
+  planned_cost: z.string().trim().max(20).optional().or(z.literal("")),
+  notes: z.string().trim().max(300).optional().or(z.literal("")),
+});
+
+/** One Workplace Skills Plan row: this course, this SETA year, this many people. */
+export async function upsertTrainingPlan(
+  orgId: string,
+  slug: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = TrainingPlanSchema.safeParse({
+    training_type_id: formData.get("training_type_id") ?? "",
+    seta_year: String(formData.get("seta_year") ?? "").trim(),
+    site: formData.get("site") ?? "",
+    planned_count: String(formData.get("planned_count") ?? "").trim(),
+    planned_cost: formData.get("planned_cost") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: first.message, field: String(first.path[0]) };
+  }
+  const cost = randsToCents(parsed.data.planned_cost);
+  if (cost === "invalid") {
+    return { ok: false, error: "Cost must be a number in rands", field: "planned_cost" };
+  }
+
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  if (!(await belongsToOrg("training_types", orgId, parsed.data.training_type_id))) {
+    return { ok: false, error: "That course is not in this workspace.", field: "training_type_id" };
+  }
+
+  const supabase: any = await createClient();
+  const { error } = await supabase.from("training_plans").upsert(
+    {
+      organisation_id: orgId,
+      training_type_id: parsed.data.training_type_id,
+      seta_year: Number(parsed.data.seta_year),
+      site: (parsed.data.site ?? "").trim(),
+      planned_count: Number(parsed.data.planned_count),
+      planned_cost_cents: cost,
+      notes: fieldOrNull(parsed.data.notes),
+      created_by: guard.userId,
+    },
+    { onConflict: "organisation_id,training_type_id,seta_year,site" },
+  );
+  if (error) return { ok: false, error: error.message ?? "Could not save the plan." };
+
+  revalidateSkillsPaths(slug);
+  return { ok: true };
+}
+
+export async function deleteTrainingPlan(
+  orgId: string,
+  slug: string,
+  id: string,
+): Promise<ActionResult> {
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase
+    .from("training_plans")
+    .delete()
+    .eq("organisation_id", orgId)
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message ?? "Could not remove the plan row." };
+
+  revalidateSkillsPaths(slug);
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Reporting settings on the organisation                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * SETA, skills levy number and EE reference number. They print on the
+ * workbooks the organisation submits, nothing else depends on them.
+ */
+export async function updateReportingSettings(
+  orgId: string,
+  slug: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  const patch: Record<string, string | number | null> = {};
+  const text = (key: string, max: number) => {
+    if (!formData.has(key)) return null;
+    const v = String(formData.get(key) ?? "").trim();
+    if (v.length > max) return `${key} is too long`;
+    patch[key] = v || null;
+    return null;
+  };
+  for (const [key, max] of [
+    ["seta", 40],
+    ["sdl_number", 20],
+    ["ee_reference", 40],
+  ] as const) {
+    const err = text(key, max);
+    if (err) return { ok: false, error: err, field: key };
+  }
+  if (formData.has("default_retirement_age")) {
+    const n = Number(String(formData.get("default_retirement_age") ?? "").trim());
+    if (!Number.isInteger(n) || n < 50 || n > 75) {
+      return { ok: false, error: "Retirement age must be between 50 and 75", field: "default_retirement_age" };
+    }
+    patch.default_retirement_age = n;
+  }
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const guard = await assertAdminUser(orgId);
+  if ("error" in guard) return { ok: false, error: guard.error };
+
+  const supabase: any = await createClient();
+  const { error } = await supabase.from("organisations").update(patch).eq("id", orgId);
+  if (error) return { ok: false, error: error.message ?? "Could not save the settings." };
+
+  revalidateSkillsPaths(slug);
+  revalidatePath(`/${slug}/hr/reports/employment-equity`);
+  revalidatePath(`/${slug}/hr/reports/retirement`);
   return { ok: true };
 }

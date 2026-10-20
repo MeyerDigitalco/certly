@@ -3,7 +3,10 @@ import {
   ArrowRightLeft,
   BarChart3,
   CalendarClock,
+  CalendarX,
   ClipboardList,
+  GraduationCap,
+  Scale,
   Users,
 } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
@@ -45,6 +48,30 @@ const REPORTS = [
     blurb:
       "Approved positions against people in service by designation, and the screening, medical, TEBA and training pipeline behind the gap.",
     needs: "A labour plan and the onboarding tracker.",
+  },
+  {
+    key: "labour-unavailability",
+    icon: CalendarX,
+    title: "Labour unavailability",
+    blurb:
+      "Days lost by reason and by site, availability against people in service, and who was off when. The figure a client uses to measure a contractor.",
+    needs: "Absences logged on the absence log.",
+  },
+  {
+    key: "employment-equity",
+    icon: Scale,
+    title: "Employment equity",
+    blurb:
+      "The EEA2 workforce profile by occupational level, population group and gender, with workforce movements for the reporting year. Due 15 January for employers with 50 or more people.",
+    needs: "EEA1 declarations captured on each employee.",
+  },
+  {
+    key: "skills-development",
+    icon: GraduationCap,
+    title: "Skills development",
+    blurb:
+      "The Annual Training Report built from the certificates you already hold, the Workplace Skills Plan for next year, and the figures the B-BBEE skills element asks for. Due to your SETA by 30 April.",
+    needs: "Category, hours and cost on each training type, plus a training plan.",
   },
 ] as const;
 
@@ -127,6 +154,29 @@ export default async function ReportsIndexPage({
               <span className="font-bold text-[var(--brand-ink)]">Onboarding.</span>{" "}
               <Link href={`/${slug}/hr/reports/labour-plan/tracker`} className="text-[var(--brand-red)] font-bold hover:underline">
                 Track candidates from screening to first shift
+              </Link>
+              .
+            </li>
+            <li>
+              <span className="font-bold text-[var(--brand-ink)]">Absences.</span>{" "}
+              <Link href={`/${slug}/hr/reports/labour-unavailability/log`} className="text-[var(--brand-red)] font-bold hover:underline">
+                Log who was off and why
+              </Link>
+              , one spell at a time or a whole crew for a day.
+            </li>
+            <li>
+              <span className="font-bold text-[var(--brand-ink)]">Employment equity.</span>{" "}
+              On the employee form, under Employment equity declaration. Capture what the
+              person signed on their EEA1, nothing more.
+            </li>
+            <li>
+              <span className="font-bold text-[var(--brand-ink)]">Training details and the skills plan.</span>{" "}
+              <Link href={`/${slug}/hr/reports/skills-development/types`} className="text-[var(--brand-red)] font-bold hover:underline">
+                Set category, hours and cost per training type
+              </Link>{" "}
+              and{" "}
+              <Link href={`/${slug}/hr/reports/skills-development/plan`} className="text-[var(--brand-red)] font-bold hover:underline">
+                plan next year&rsquo;s training
               </Link>
               .
             </li>

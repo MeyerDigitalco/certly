@@ -1,8 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import type {
+  Absence,
   Employee,
   LabourPlan,
   OnboardingCandidate,
+  TrainingPlan,
+  TrainingType,
 } from "@/lib/types/database";
 import { siteOf } from "@/lib/hr/operations";
 
@@ -36,6 +39,12 @@ export type ReportEmployee = Pick<
   | "terminated_at"
   | "termination_reason"
   | "termination_notes"
+  | "gender"
+  | "population_group"
+  | "disability"
+  | "occupational_level"
+  | "ofo_code"
+  | "ee_declared_at"
   | "created_at"
 >;
 
@@ -46,7 +55,7 @@ export async function getEmployeesForReports(
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "id, surname, names, id_number, id_type, id_country, site, designation, superior, date_of_birth, engaged_at, retirement_age, approved_retirement_date, terminated_at, termination_reason, termination_notes, created_at",
+      "id, surname, names, id_number, id_type, id_country, site, designation, superior, date_of_birth, engaged_at, retirement_age, approved_retirement_date, terminated_at, termination_reason, termination_notes, gender, population_group, disability, occupational_level, ofo_code, ee_declared_at, created_at",
     )
     .eq("organisation_id", orgId)
     .order("surname", { ascending: true })
@@ -121,4 +130,63 @@ export function sitesFrom(
   for (const p of plans) set.add(siteOf(p.site));
   for (const c of candidates) set.add(siteOf(c.site));
   return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+/** Every absence spell, oldest first. Reports slice by period in memory. */
+export async function getAbsences(orgId: string): Promise<Absence[]> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("absences")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .order("starts_on", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Absence[];
+}
+
+export async function getTrainingTypesForReports(orgId: string): Promise<TrainingType[]> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("training_types")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as TrainingType[];
+}
+
+/**
+ * Training delivered, as the Annual Training Report sees it: one row per
+ * certificate with the date it was obtained. A refresher overwrites the
+ * previous certificate of the same type, so the training_date is always
+ * the most recent delivery, which is the one the SETA year wants.
+ */
+export interface TrainingDelivered {
+  id: string;
+  employee_id: string;
+  training_type_id: string;
+  training_date: string | null;
+  expiry_date: string | null;
+}
+
+export async function getTrainingDelivered(orgId: string): Promise<TrainingDelivered[]> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("certifications")
+    .select("id, employee_id, training_type_id, training_date, expiry_date")
+    .eq("organisation_id", orgId);
+  if (error) throw error;
+  return (data ?? []) as TrainingDelivered[];
+}
+
+export async function getTrainingPlans(orgId: string): Promise<TrainingPlan[]> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("training_plans")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .order("seta_year", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as TrainingPlan[];
 }
