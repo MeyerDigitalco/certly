@@ -6,6 +6,9 @@ import {
   signPayload,
   verifyNotificationSignature,
   checkoutFields,
+  secretShape,
+  signatureProbe,
+  SANDBOX_DOCS_PASSPHRASE,
   processUrl,
   validateUrl,
   type PayFastField,
@@ -347,10 +350,15 @@ describe("checkout field order", () => {
     expect(str.indexOf("custom_int1=")).toBeLessThan(str.indexOf("custom_str1="));
   });
 
-  it("drops cycles when it is zero, because PayFast omits empty values", () => {
-    const { fields } = checkoutFields(input);
+  it("keeps zero values in the signature string", () => {
+    // PayFast omits a field whose value is an empty string and keeps one whose
+    // value is "0". Dropping cycles=0 or custom_int1=0 the way PHP's empty()
+    // would is a signature mismatch, not a fix.
+    const { fields } = checkoutFields({ ...input, seats: 0 });
     const withoutSignature = fields.filter(([k]) => k !== "signature");
-    expect(signatureStringFor(withoutSignature).includes("cycles=0")).toBe(true);
+    const str = signatureStringFor(withoutSignature);
+    expect(str.includes("cycles=0")).toBe(true);
+    expect(str.includes("custom_int1=0")).toBe(true);
   });
 
   it("encodes the way PHP urlencode does, including tilde and space", () => {
@@ -360,5 +368,76 @@ describe("checkout field order", () => {
     expect(phpUrlEncode("https://certly.co.za/mdc/hr/billing?paid=1")).toBe(
       "https%3A%2F%2Fcertly.co.za%2Fmdc%2Fhr%2Fbilling%3Fpaid%3D1",
     );
+  });
+});
+
+describe("secretShape", () => {
+  it("reports absence rather than printing an empty mask", () => {
+    expect(secretShape(undefined)).toBe("not set");
+    expect(secretShape("")).toBe("not set");
+  });
+
+  it("keeps the first and last character so two candidates can be told apart", () => {
+    expect(secretShape("jt7NOE43FZPn")).toBe("j**********n (12 characters)");
+  });
+
+  it("never prints the middle of a secret", () => {
+    const shape = secretShape("correct horse battery staple");
+    expect(shape.includes("horse")).toBe(false);
+    expect(shape.includes("battery")).toBe(false);
+  });
+});
+
+describe("signatureProbe", () => {
+  const fields: PayFastField[] = [
+    ["merchant_id", "10000100"],
+    ["amount", "999.00"],
+    ["cycles", "0"],
+  ];
+
+  it("masks the passphrase in the string it prints", () => {
+    const probe = signatureProbe(fields, "jt7NOE43FZPn");
+    expect(probe.hashedString.includes("jt7NOE43FZPn")).toBe(false);
+    expect(probe.hashedString.includes("passphrase=j**********n")).toBe(true);
+    expect(probe.hashedString.startsWith("merchant_id=10000100&amount=999.00")).toBe(true);
+  });
+
+  it("offers the configured passphrase and no passphrase as separate candidates", () => {
+    const probe = signatureProbe(fields, "jt7NOE43FZPn");
+    const keys = probe.candidates.map((c) => c.key);
+    expect(keys).toContain("configured");
+    expect(keys).toContain("none");
+    expect(probe.candidates.find((c) => c.key === "configured")?.signature).toBe(
+      signPayload(fields, "jt7NOE43FZPn"),
+    );
+    expect(probe.candidates.find((c) => c.key === "none")?.signature).toBe(
+      signPayload(fields),
+    );
+  });
+
+  it("does not repeat the documented sandbox passphrase when it is the configured one", () => {
+    const probe = signatureProbe(fields, SANDBOX_DOCS_PASSPHRASE);
+    expect(probe.candidates.filter((c) => c.key === "docs")).toHaveLength(0);
+    expect(probe.candidates).toHaveLength(2);
+  });
+
+  it("offers the documented sandbox passphrase when another one is configured", () => {
+    const probe = signatureProbe(fields, "something-else");
+    expect(probe.candidates.find((c) => c.key === "docs")?.signature).toBe(
+      signPayload(fields, SANDBOX_DOCS_PASSPHRASE),
+    );
+  });
+
+  it("says plainly when no passphrase is set at all", () => {
+    const probe = signatureProbe(fields, undefined);
+    expect(probe.passphraseShape).toBe("not set");
+    expect(probe.hashedString.includes("passphrase=")).toBe(false);
+    expect(probe.candidates.map((c) => c.key)).toEqual(["none", "docs"]);
+  });
+
+  it("produces different signatures for every candidate", () => {
+    const probe = signatureProbe(fields, "something-else");
+    const sigs = new Set(probe.candidates.map((c) => c.signature));
+    expect(sigs.size).toBe(probe.candidates.length);
   });
 });

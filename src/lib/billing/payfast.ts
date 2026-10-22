@@ -89,6 +89,90 @@ export function signPayload(
 }
 
 /**
+ * Show enough of a secret to recognise it without printing it.
+ *
+ * A passphrase mismatch is the one signature fault that cannot be seen from
+ * the posted form, because the passphrase is the only input PayFast never
+ * echoes. First character, last character and length are enough to tell two
+ * candidate passphrases apart, and not enough to use one.
+ */
+export function secretShape(value: string | undefined): string {
+  if (!value) return "not set";
+  const v = value.trim();
+  if (v.length <= 2) return `${"*".repeat(v.length)} (${v.length} characters)`;
+  return `${v[0]}${"*".repeat(v.length - 2)}${v[v.length - 1]} (${v.length} characters)`;
+}
+
+/**
+ * The passphrase PayFast prints in its own sandbox examples. Not a secret and
+ * not necessarily the one set on any given sandbox account: the sandbox lets
+ * each merchant generate their own, so this is a candidate to try, never a
+ * default to rely on. Used only by the sandbox diagnostic below.
+ */
+export const SANDBOX_DOCS_PASSPHRASE = "jt7NOE43FZPn";
+
+export interface SignatureCandidate {
+  key: "configured" | "none" | "docs";
+  label: string;
+  signature: string;
+}
+
+export interface SignatureProbe {
+  /** The exact string hashed, with the passphrase value replaced by its shape. */
+  hashedString: string;
+  passphraseShape: string;
+  candidates: SignatureCandidate[];
+}
+
+/**
+ * Everything needed to tell which signature PayFast is rejecting.
+ *
+ * A signature fault has exactly four possible causes: the field values, their
+ * order, the character encoding and the passphrase. The first three are
+ * visible in the posted form, so a dump of the form settles them. The
+ * passphrase is not, which is why this returns the hash computed both ways.
+ * Posting each in turn against the same account identifies the passphrase
+ * state in one sitting rather than one deployment per guess.
+ */
+export function signatureProbe(
+  fields: PayFastField[],
+  passphrase?: string,
+): SignatureProbe {
+  const body = signatureStringFor(fields);
+  const shape = secretShape(passphrase);
+  const configured = passphrase?.trim();
+
+  const candidates: SignatureCandidate[] = [];
+  if (configured) {
+    candidates.push({
+      key: "configured",
+      label: `With the passphrase set on this deployment (${shape})`,
+      signature: signPayload(fields, configured),
+    });
+  }
+  candidates.push({
+    key: "none",
+    label: "With no passphrase at all",
+    signature: signPayload(fields),
+  });
+  if (configured !== SANDBOX_DOCS_PASSPHRASE) {
+    candidates.push({
+      key: "docs",
+      label: "With the passphrase from PayFast's sandbox documentation",
+      signature: signPayload(fields, SANDBOX_DOCS_PASSPHRASE),
+    });
+  }
+
+  return {
+    hashedString: configured
+      ? `${body}&passphrase=${shape}`
+      : `${body}   [nothing appended, no passphrase is set]`,
+    passphraseShape: shape,
+    candidates,
+  };
+}
+
+/**
  * Verify a notification's signature. The notification's own signature field is
  * excluded from the hash, and the remaining fields are hashed in the order
  * PayFast sent them, which is why this takes ordered pairs rather than an

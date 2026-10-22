@@ -11,8 +11,13 @@ import {
   EXTRA_SEAT_CENTS,
   BASE_MONTHLY_CENTS,
 } from "@/lib/billing/plan";
-import { payfastConfig, checkoutFields } from "@/lib/billing/payfast";
+import {
+  payfastConfig,
+  checkoutFields,
+  signatureProbe,
+} from "@/lib/billing/payfast";
 import PayFastForm from "./PayFastForm";
+import PayFastDiagnostic from "./PayFastDiagnostic";
 import CloseAccount from "./CloseAccount";
 import CancelSubscription from "./CancelSubscription";
 import PageHeader from "@/components/app/PageHeader";
@@ -26,7 +31,11 @@ export default async function BillingPage({
   searchParams,
 }: {
   params: Promise<{ org: string }>;
-  searchParams: Promise<{ paid?: string; cancelled?: string }>;
+  searchParams: Promise<{
+    paid?: string;
+    cancelled?: string;
+    debug?: string;
+  }>;
 }) {
   const { org: slug } = await params;
   const sp = await searchParams;
@@ -51,6 +60,16 @@ export default async function BillingPage({
           amount: payfastAmount(state.quote.totalCents),
           seats: state.seats,
         })
+      : null;
+
+  // Sandbox only, so a signature dump can never be rendered against a live
+  // merchant account however the query string is set.
+  const diagnostic =
+    checkout && config?.sandbox && sp.debug === "signature"
+      ? signatureProbe(
+          checkout.fields.filter(([key]) => key !== "signature"),
+          config.passphrase,
+        )
       : null;
 
   return (
@@ -163,6 +182,15 @@ export default async function BillingPage({
           </p>
         </section>
       )}
+
+      {diagnostic && checkout && config ? (
+        <PayFastDiagnostic
+          action={checkout.action}
+          fields={checkout.fields}
+          probe={diagnostic}
+          merchantId={config.merchantId}
+        />
+      ) : null}
 
       <CloseAccount
         orgId={ctx.org.id}
