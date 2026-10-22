@@ -47,13 +47,14 @@ export type PayFastField = [key: string, value: string];
 
 /**
  * PHP urlencode, which is what PayFast's own signature code uses. Differs from
- * encodeURIComponent: space becomes +, and ! ' ( ) * are escaped.
+ * encodeURIComponent on four counts: space becomes a plus, and ! ' ( ) * ~
+ * are all escaped where encodeURIComponent leaves them alone.
  */
 export function phpUrlEncode(value: string): string {
   return encodeURIComponent(value)
     .replace(/%20/g, "+")
     .replace(
-      /[!'()*]/g,
+      /[!'()*~]/g,
       (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
     )
     .replace(/%[0-9a-f]{2}/g, (m) => m.toUpperCase());
@@ -160,6 +161,13 @@ export interface CheckoutInput {
 /**
  * The ordered fields for a monthly subscription, plus the signature over them.
  *
+ * The order is not ours to choose. PayFast rebuilds the signature string from
+ * its own documented attribute order, so every custom_int comes before every
+ * custom_str whatever order the form posts them in. Getting that wrong gives
+ * "Generated signature does not match submitted signature" and no other clue.
+ * The array below is in PayFast's documented order and the form renders it in
+ * the same order, so the two can never disagree.
+ *
  * m_payment_id carries the workspace id so a notification can be matched back
  * to a tenant without trusting custom_str fields alone, and custom_str1 repeats
  * it because PayFast echoes both. The amount is verified again against a fresh
@@ -186,9 +194,9 @@ export function checkoutFields(input: CheckoutInput): {
       "item_description",
       `Monthly subscription for ${orgName}, ${seats} ${seats === 1 ? "person" : "people"} on the register`,
     ],
+    ["custom_int1", String(seats)],
     ["custom_str1", orgId],
     ["custom_str2", slug],
-    ["custom_int1", String(seats)],
     ["subscription_type", "1"],
     ["frequency", String(FREQUENCY_MONTHLY)],
     ["cycles", String(CYCLES_INDEFINITE)],

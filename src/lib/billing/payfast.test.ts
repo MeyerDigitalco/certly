@@ -42,8 +42,12 @@ describe("phpUrlEncode", () => {
     expect(phpUrlEncode("a*b")).toBe("a%2Ab");
   });
 
-  it("leaves the unreserved set alone", () => {
-    expect(phpUrlEncode("Abc-123_x.y~z")).toBe("Abc-123_x.y~z");
+  it("leaves letters, digits, hyphen, underscore and dot alone", () => {
+    expect(phpUrlEncode("Abc-123_x.y")).toBe("Abc-123_x.y");
+  });
+
+  it("escapes the tilde, because PayFast signs with urlencode and not rawurlencode", () => {
+    expect(phpUrlEncode("Abc~z")).toBe("Abc%7Ez");
   });
 });
 
@@ -289,5 +293,72 @@ describe("updateSubscriptionAmount", () => {
       { amountCents: 99900 },
     );
     expect(outcome.status).toBe("skipped");
+  });
+});
+
+describe("checkout field order", () => {
+  const input = {
+    config: {
+      merchantId: "10000100",
+      merchantKey: "46f0cd694581a",
+      passphrase: "jt7NOE43FZPn",
+      sandbox: true,
+    },
+    origin: "https://certly.co.za",
+    orgId: "11111111-2222-3333-4444-555555555555",
+    orgName: "MDC",
+    slug: "mdc",
+    billingEmail: "owner@example.co.za",
+    amount: "999.00",
+    seats: 50,
+  };
+
+  it("emits PayFast's documented attribute order, custom_int before custom_str", () => {
+    const { fields } = checkoutFields(input);
+    expect(fields.map(([k]) => k)).toEqual([
+      "merchant_id",
+      "merchant_key",
+      "return_url",
+      "cancel_url",
+      "notify_url",
+      "email_address",
+      "m_payment_id",
+      "amount",
+      "item_name",
+      "item_description",
+      "custom_int1",
+      "custom_str1",
+      "custom_str2",
+      "subscription_type",
+      "frequency",
+      "cycles",
+      "signature",
+    ]);
+  });
+
+  it("signs the fields in that same order with the passphrase appended last", () => {
+    const { fields } = checkoutFields(input);
+    const signature = fields.find(([k]) => k === "signature")?.[1];
+    const withoutSignature = fields.filter(([k]) => k !== "signature");
+    expect(signature).toBe(signPayload(withoutSignature, input.config.passphrase));
+    const str = signatureStringFor(withoutSignature, input.config.passphrase);
+    expect(str.startsWith("merchant_id=10000100&merchant_key=46f0cd694581a&")).toBe(true);
+    expect(str.endsWith("&passphrase=jt7NOE43FZPn")).toBe(true);
+    expect(str.indexOf("custom_int1=")).toBeLessThan(str.indexOf("custom_str1="));
+  });
+
+  it("drops cycles when it is zero, because PayFast omits empty values", () => {
+    const { fields } = checkoutFields(input);
+    const withoutSignature = fields.filter(([k]) => k !== "signature");
+    expect(signatureStringFor(withoutSignature).includes("cycles=0")).toBe(true);
+  });
+
+  it("encodes the way PHP urlencode does, including tilde and space", () => {
+    expect(phpUrlEncode("a b")).toBe("a+b");
+    expect(phpUrlEncode("~")).toBe("%7E");
+    expect(phpUrlEncode("it's (x)*")).toBe("it%27s+%28x%29%2A");
+    expect(phpUrlEncode("https://certly.co.za/mdc/hr/billing?paid=1")).toBe(
+      "https%3A%2F%2Fcertly.co.za%2Fmdc%2Fhr%2Fbilling%3Fpaid%3D1",
+    );
   });
 });
