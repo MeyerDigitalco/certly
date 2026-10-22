@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CertlyMark } from "@/components/CertlyMark";
+import { createClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import LoginForm from "./LoginForm";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const metadata = {
   title: "Sign in",
@@ -13,6 +18,12 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const sp = await searchParams;
+
+  const supabase: any = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect(safeRedirectPath(sp.next, "/workspace"));
 
   return (
     <main className="min-h-screen flex items-center justify-center px-6">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
+import SessionNav from "@/components/guides/SessionNav";
 import { SITE, jsonLd } from "@/lib/site";
 import { GUIDES, longDate } from "@/lib/guides";
 
@@ -46,10 +47,7 @@ export default function GuidesIndexPage() {
           <Link href="/#file">Safety files</Link>
           <Link href="/#reports">Reports</Link>
           <Link href="/#price">Pricing</Link>
-          <Link href="/login">Sign in</Link>
-          <Link className="btn" href="/signup">
-            Start free
-          </Link>
+          <SessionNav />
         </nav>
       </header>
 

@@ -243,8 +243,10 @@ export default function OverviewView({
               if (!g) return null;
               return (
                 <li key={g.slug}>
-                  <Link
+                  <a
                     href={`/guides/${g.slug}`}
+                    target="_blank"
+                    rel="noopener"
                     className="block px-5 py-3 hover:text-[var(--brand-red)]"
                   >
                     <span className="text-sm font-bold">{g.heading}</span>
@@ -253,7 +255,7 @@ export default function OverviewView({
                         {g.deadline}
                       </span>
                     ) : null}
-                  </Link>
+                  </a>
                 </li>
               );
             })}
