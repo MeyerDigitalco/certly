@@ -111,28 +111,143 @@ export function secretShape(value: string | undefined): string {
  */
 export const SANDBOX_DOCS_PASSPHRASE = "jt7NOE43FZPn";
 
-export interface SignatureCandidate {
-  key: "configured" | "none" | "docs";
+export interface DiagnosticVariant {
+  key: string;
   label: string;
+  explains: string;
+  /** Posted to PayFast, in this order, without the signature field. */
+  fields: PayFastField[];
+  /** Hashed over these, which is not always the posted order. */
+  signed: PayFastField[];
+  passphrase?: string;
   signature: string;
 }
 
 export interface SignatureProbe {
-  /** The exact string hashed, with the passphrase value replaced by its shape. */
+  /** The exact string hashed, with any passphrase replaced by its shape. */
   hashedString: string;
   passphraseShape: string;
-  candidates: SignatureCandidate[];
+  variants: DiagnosticVariant[];
+}
+
+/**
+ * Fields PayFast needs for a plain once-off payment and nothing else.
+ *
+ * This exists to bisect a signature failure. Every optional field is a chance
+ * to mis-encode something, and the subscription fields add a second set of
+ * rules on top. If the shortest legal form is rejected too, the fault is not
+ * in how a particular field is built, it is in the credentials, the account or
+ * the algorithm itself, and there is no point auditing field values further.
+ */
+const BARE_KEYS = [
+  "merchant_id",
+  "merchant_key",
+  "return_url",
+  "cancel_url",
+  "notify_url",
+  "amount",
+  "item_name",
+];
+
+function pick(fields: PayFastField[], keys: string[]): PayFastField[] {
+  return keys
+    .map((key) => fields.find(([k]) => k === key))
+    .filter((f): f is PayFastField => Boolean(f));
+}
+
+function sortedByKey(fields: PayFastField[]): PayFastField[] {
+  return [...fields].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/**
+ * Candidate signatures over one checkout, each isolating a different rule.
+ *
+ * PayFast reports a signature fault in one sentence with no detail, so each
+ * theory otherwise costs a deployment to test. These post the same checkout
+ * with the signature computed a different way, so a run through the list
+ * narrows the cause to whichever one PayFast accepts, or proves that none of
+ * the usual suspects is the problem.
+ */
+export function diagnosticVariants(
+  base: PayFastField[],
+  passphrase?: string,
+): DiagnosticVariant[] {
+  const configured = passphrase?.trim() || undefined;
+  const bare = pick(base, BARE_KEYS);
+
+  const shapes: Array<{
+    key: string;
+    label: string;
+    explains: string;
+    fields: PayFastField[];
+    signed: PayFastField[];
+  }> = [
+    {
+      key: "posted",
+      label: "Everything, signed in the order it is posted",
+      explains: "What the live button already does.",
+      fields: base,
+      signed: base,
+    },
+    {
+      key: "sorted",
+      label: "Everything, signed in alphabetical order",
+      explains:
+        "Tests whether PayFast sorts the fields before hashing rather than taking them as posted.",
+      fields: base,
+      signed: sortedByKey(base),
+    },
+    {
+      key: "bare",
+      label: "A once-off payment with only the required fields",
+      explains:
+        "No subscription, no custom fields, no description. If even this is rejected, the fault is not in a field value.",
+      fields: bare,
+      signed: bare,
+    },
+  ];
+
+  const passes: Array<{ suffix: string; note: string; value?: string }> = [];
+  if (configured) {
+    passes.push({
+      suffix: "configured",
+      note: `passphrase ${secretShape(configured)}`,
+      value: configured,
+    });
+  }
+  passes.push({ suffix: "none", note: "no passphrase" });
+  if (configured !== SANDBOX_DOCS_PASSPHRASE) {
+    passes.push({
+      suffix: "docs",
+      note: "documented sandbox passphrase",
+      value: SANDBOX_DOCS_PASSPHRASE,
+    });
+  }
+
+  const out: DiagnosticVariant[] = [];
+  for (const shape of shapes) {
+    for (const pass of passes) {
+      out.push({
+        key: `${shape.key}-${pass.suffix}`,
+        label: `${shape.label}, ${pass.note}`,
+        explains: shape.explains,
+        fields: shape.fields,
+        signed: shape.signed,
+        passphrase: pass.value,
+        signature: signPayload(shape.signed, pass.value),
+      });
+    }
+  }
+  return out;
 }
 
 /**
  * Everything needed to tell which signature PayFast is rejecting.
  *
- * A signature fault has exactly four possible causes: the field values, their
- * order, the character encoding and the passphrase. The first three are
- * visible in the posted form, so a dump of the form settles them. The
- * passphrase is not, which is why this returns the hash computed both ways.
- * Posting each in turn against the same account identifies the passphrase
- * state in one sitting rather than one deployment per guess.
+ * A signature fault has four possible causes: the field values, their order,
+ * the character encoding and the passphrase. The values and the encoding are
+ * readable in the printed string. The order and the passphrase are not, so
+ * each gets its own candidate below rather than another round of guessing.
  */
 export function signatureProbe(
   fields: PayFastField[],
@@ -142,33 +257,12 @@ export function signatureProbe(
   const shape = secretShape(passphrase);
   const configured = passphrase?.trim();
 
-  const candidates: SignatureCandidate[] = [];
-  if (configured) {
-    candidates.push({
-      key: "configured",
-      label: `With the passphrase set on this deployment (${shape})`,
-      signature: signPayload(fields, configured),
-    });
-  }
-  candidates.push({
-    key: "none",
-    label: "With no passphrase at all",
-    signature: signPayload(fields),
-  });
-  if (configured !== SANDBOX_DOCS_PASSPHRASE) {
-    candidates.push({
-      key: "docs",
-      label: "With the passphrase from PayFast's sandbox documentation",
-      signature: signPayload(fields, SANDBOX_DOCS_PASSPHRASE),
-    });
-  }
-
   return {
     hashedString: configured
       ? `${body}&passphrase=${shape}`
       : `${body}   [nothing appended, no passphrase is set]`,
     passphraseShape: shape,
-    candidates,
+    variants: diagnosticVariants(fields, passphrase),
   };
 }
 

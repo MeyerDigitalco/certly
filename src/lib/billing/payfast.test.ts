@@ -8,6 +8,7 @@ import {
   checkoutFields,
   secretShape,
   signatureProbe,
+  diagnosticVariants,
   SANDBOX_DOCS_PASSPHRASE,
   processUrl,
   validateUrl,
@@ -391,7 +392,13 @@ describe("secretShape", () => {
 describe("signatureProbe", () => {
   const fields: PayFastField[] = [
     ["merchant_id", "10000100"],
+    ["merchant_key", "46f0cd694581a"],
+    ["return_url", "https://certly.co.za/mdc/hr/billing?paid=1"],
+    ["cancel_url", "https://certly.co.za/mdc/hr/billing?cancelled=1"],
+    ["notify_url", "https://certly.co.za/api/payfast/notify"],
     ["amount", "999.00"],
+    ["item_name", "Certly subscription"],
+    ["custom_int1", "0"],
     ["cycles", "0"],
   ];
 
@@ -399,45 +406,92 @@ describe("signatureProbe", () => {
     const probe = signatureProbe(fields, "jt7NOE43FZPn");
     expect(probe.hashedString.includes("jt7NOE43FZPn")).toBe(false);
     expect(probe.hashedString.includes("passphrase=j**********n")).toBe(true);
-    expect(probe.hashedString.startsWith("merchant_id=10000100&amount=999.00")).toBe(true);
-  });
-
-  it("offers the configured passphrase and no passphrase as separate candidates", () => {
-    const probe = signatureProbe(fields, "jt7NOE43FZPn");
-    const keys = probe.candidates.map((c) => c.key);
-    expect(keys).toContain("configured");
-    expect(keys).toContain("none");
-    expect(probe.candidates.find((c) => c.key === "configured")?.signature).toBe(
-      signPayload(fields, "jt7NOE43FZPn"),
-    );
-    expect(probe.candidates.find((c) => c.key === "none")?.signature).toBe(
-      signPayload(fields),
-    );
-  });
-
-  it("does not repeat the documented sandbox passphrase when it is the configured one", () => {
-    const probe = signatureProbe(fields, SANDBOX_DOCS_PASSPHRASE);
-    expect(probe.candidates.filter((c) => c.key === "docs")).toHaveLength(0);
-    expect(probe.candidates).toHaveLength(2);
-  });
-
-  it("offers the documented sandbox passphrase when another one is configured", () => {
-    const probe = signatureProbe(fields, "something-else");
-    expect(probe.candidates.find((c) => c.key === "docs")?.signature).toBe(
-      signPayload(fields, SANDBOX_DOCS_PASSPHRASE),
-    );
   });
 
   it("says plainly when no passphrase is set at all", () => {
     const probe = signatureProbe(fields, undefined);
     expect(probe.passphraseShape).toBe("not set");
     expect(probe.hashedString.includes("passphrase=")).toBe(false);
-    expect(probe.candidates.map((c) => c.key)).toEqual(["none", "docs"]);
+  });
+});
+
+describe("diagnosticVariants", () => {
+  const fields: PayFastField[] = [
+    ["merchant_id", "10000100"],
+    ["merchant_key", "46f0cd694581a"],
+    ["return_url", "https://certly.co.za/mdc/hr/billing?paid=1"],
+    ["cancel_url", "https://certly.co.za/mdc/hr/billing?cancelled=1"],
+    ["notify_url", "https://certly.co.za/api/payfast/notify"],
+    ["amount", "999.00"],
+    ["item_name", "Certly subscription"],
+    ["custom_int1", "0"],
+    ["cycles", "0"],
+  ];
+
+  it("covers each hashing order against each passphrase state", () => {
+    const keys = diagnosticVariants(fields).map((v) => v.key);
+    expect(keys).toEqual([
+      "posted-none",
+      "posted-docs",
+      "sorted-none",
+      "sorted-docs",
+      "bare-none",
+      "bare-docs",
+    ]);
   });
 
-  it("produces different signatures for every candidate", () => {
-    const probe = signatureProbe(fields, "something-else");
-    const sigs = new Set(probe.candidates.map((c) => c.signature));
-    expect(sigs.size).toBe(probe.candidates.length);
+  it("adds the configured passphrase as its own candidate when one is set", () => {
+    const keys = diagnosticVariants(fields, "something-else").map((v) => v.key);
+    expect(keys).toContain("posted-configured");
+    expect(keys).toContain("posted-none");
+    expect(keys).toContain("posted-docs");
+  });
+
+  it("does not repeat the documented passphrase when it is the configured one", () => {
+    const keys = diagnosticVariants(fields, SANDBOX_DOCS_PASSPHRASE).map((v) => v.key);
+    expect(keys.filter((k) => k.endsWith("-docs"))).toHaveLength(0);
+  });
+
+  it("posts the full field list but hashes it sorted for the sorted variant", () => {
+    const sorted = diagnosticVariants(fields).find((v) => v.key === "sorted-none")!;
+    expect(sorted.fields.map(([k]) => k)).toEqual(fields.map(([k]) => k));
+    expect(sorted.signed.map(([k]) => k)).toEqual([
+      "amount",
+      "cancel_url",
+      "custom_int1",
+      "cycles",
+      "item_name",
+      "merchant_id",
+      "merchant_key",
+      "notify_url",
+      "return_url",
+    ]);
+    expect(sorted.signature).toBe(signPayload(sorted.signed));
+  });
+
+  it("strips the bare variant to the fields PayFast requires", () => {
+    const bare = diagnosticVariants(fields).find((v) => v.key === "bare-none")!;
+    expect(bare.fields.map(([k]) => k)).toEqual([
+      "merchant_id",
+      "merchant_key",
+      "return_url",
+      "cancel_url",
+      "notify_url",
+      "amount",
+      "item_name",
+    ]);
+    expect(bare.fields.some(([k]) => k.startsWith("custom_"))).toBe(false);
+    expect(bare.fields.some(([k]) => k === "cycles")).toBe(false);
+  });
+
+  it("signs each variant over exactly what it claims to sign", () => {
+    for (const v of diagnosticVariants(fields, "something-else")) {
+      expect(v.signature).toBe(signPayload(v.signed, v.passphrase));
+    }
+  });
+
+  it("gives every variant a distinct signature", () => {
+    const variants = diagnosticVariants(fields, "something-else");
+    expect(new Set(variants.map((v) => v.signature)).size).toBe(variants.length);
   });
 });

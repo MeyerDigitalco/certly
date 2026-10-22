@@ -1,15 +1,15 @@
 import { FlaskConical } from "lucide-react";
-import type { PayFastField, SignatureProbe } from "@/lib/billing/payfast";
+import type { SignatureProbe } from "@/lib/billing/payfast";
 
 /**
  * A sandbox-only panel for settling a signature rejection.
  *
  * PayFast answers a bad signature with one sentence and no detail, so every
- * theory costs a deployment to test. This panel removes that cost. It prints
- * the exact string being hashed, in order, so the field values, their order
- * and the character encoding can all be read off directly, and it offers one
- * submit button per passphrase candidate so the only invisible input can be
- * identified by elimination in a single sitting.
+ * theory otherwise costs a deployment to test. This panel removes that cost.
+ * It prints the exact string being hashed, so field values and encoding can be
+ * read off directly, and it offers one submit per candidate rule so the two
+ * inputs that are not visible in the posted form, the hashing order and the
+ * passphrase, can be identified by elimination in a single sitting.
  *
  * It renders only when the deployment is pointed at the sandbox, so it cannot
  * appear on a live merchant account, and only for an owner, because the page
@@ -17,17 +17,13 @@ import type { PayFastField, SignatureProbe } from "@/lib/billing/payfast";
  */
 export default function PayFastDiagnostic({
   action,
-  fields,
   probe,
   merchantId,
 }: {
   action: string;
-  fields: PayFastField[];
   probe: SignatureProbe;
   merchantId: string;
 }) {
-  const unsigned = fields.filter(([key]) => key !== "signature");
-
   return (
     <section className="bg-[var(--brand-cream)] border-2 border-dashed border-[var(--brand-line)] rounded-2xl p-6 space-y-5">
       <header className="flex items-start gap-3">
@@ -54,11 +50,8 @@ export default function PayFastDiagnostic({
       </dl>
 
       <div>
-        <p className="text-sm font-bold">The string being hashed</p>
-        <p className="text-xs text-[var(--brand-slate)] mt-1">
-          Field order, values and encoding are all visible here. If PayFast
-          disagrees about any of those, it will be a difference you can see in
-          this line.
+        <p className="text-sm font-bold">
+          The string the live button hashes
         </p>
         <pre className="mt-2 bg-white border border-[var(--brand-line)] rounded-md p-3 text-[11px] leading-relaxed whitespace-pre-wrap break-all font-mono">
           {probe.hashedString}
@@ -67,32 +60,38 @@ export default function PayFastDiagnostic({
 
       <div className="space-y-3">
         <p className="text-sm font-bold">
-          Try each one and note which gets past the signature check
+          Open each in turn and write down the exact error
         </p>
         <p className="text-xs text-[var(--brand-slate)]">
-          Every field is identical in all of them. Only the passphrase used to
-          compute the signature changes. Use a private window so you are not
-          signed in to the sandbox as the merchant.
+          The wording matters more than whether it worked. A signature
+          complaint, a merchant complaint and a field complaint are three
+          different faults with three different fixes. Use a private window and
+          do not sign in to the sandbox as the merchant.
         </p>
-        {probe.candidates.map((candidate) => (
+
+        {probe.variants.map((variant) => (
           <form
-            key={candidate.key}
+            key={variant.key}
             action={action}
             method="post"
+            target="_blank"
             className="border border-[var(--brand-line)] bg-white rounded-md p-3"
           >
-            {unsigned.map(([name, value]) => (
+            {variant.fields.map(([name, value]) => (
               <input key={name} type="hidden" name={name} value={value} />
             ))}
-            <input type="hidden" name="signature" value={candidate.signature} />
+            <input type="hidden" name="signature" value={variant.signature} />
             <button
               type="submit"
               className="text-sm font-bold underline hover:text-[var(--brand-red)] text-left"
             >
-              {candidate.label}
+              {variant.key}. {variant.label}
             </button>
+            <p className="text-xs text-[var(--brand-slate)] mt-1">
+              {variant.explains}
+            </p>
             <p className="text-[11px] font-mono text-[var(--brand-slate)] mt-1">
-              {candidate.signature}
+              {variant.fields.length} fields, signature {variant.signature}
             </p>
           </form>
         ))}

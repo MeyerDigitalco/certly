@@ -186,7 +186,6 @@ export default async function BillingPage({
       {diagnostic && checkout && config ? (
         <PayFastDiagnostic
           action={checkout.action}
-          fields={checkout.fields}
           probe={diagnostic}
           merchantId={config.merchantId}
         />
