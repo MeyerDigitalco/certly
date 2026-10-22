@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant, requireRole } from "@/lib/tenant";
 import {
   getEmployee,
@@ -7,6 +5,7 @@ import {
   getTrainingTypes,
 } from "@/lib/hr/queries";
 import CertForm from "../CertForm";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "New certification" };
 export const dynamic = "force-dynamic";
@@ -39,19 +38,19 @@ export default async function NewCertificationPage({
 
   return (
     <div className="max-w-2xl">
-      <Link
-        href={backHref}
-        className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-      >
-        <ArrowLeft size={12} />
-        {lockedEmployee ? "Back to employee" : "Back to register"}
-      </Link>
-      <h1 className="mt-2 text-3xl font-black">New certification</h1>
-      <p className="mt-1 text-[var(--brand-slate)]">
-        {lockedEmployee
-          ? `Record training for ${lockedEmployee.names} ${lockedEmployee.surname}.`
-          : "Record training against an employee in this workspace."}
-      </p>
+      <PageHeader
+        kicker="Register"
+        title="New certification"
+        lede={
+          lockedEmployee
+            ? `Record training for ${lockedEmployee.names} ${lockedEmployee.surname}.`
+            : "Record training against an employee in this workspace."
+        }
+        back={{
+          href: backHref,
+          label: lockedEmployee ? "Back to employee" : "Back to register",
+        }}
+      />
 
       {trainingTypes.length === 0 ? (
         <div className="mt-8 bg-white border border-[var(--brand-line)] rounded-2xl p-8 text-center text-[var(--brand-slate)]">

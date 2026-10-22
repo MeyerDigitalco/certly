@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Plus,
   Pencil,
   Trash2,
@@ -17,6 +16,7 @@ import {
   type AuditAction,
   type AuditEntry,
 } from "@/lib/hr/audit";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Activity" };
 export const dynamic = "force-dynamic";
@@ -80,21 +80,12 @@ export default async function AuditPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to register
-        </Link>
-        <h1 className="mt-2 text-3xl font-black">Activity</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
-          Every change to an employee record, a certification or a scanned
-          document, who made it and when. Written by the database itself, not by
-          the application, so it records what actually happened rather than what
-          a screen intended. It cannot be edited or deleted from here.
-        </p>
-      </div>
+      <PageHeader
+        kicker="Workspace"
+        title="Activity"
+        lede="Every change to an employee record, a certification or a scanned document, who made it and when. Written by the database itself, not by the application, so it records what actually happened rather than what a screen intended. It cannot be edited or deleted from here."
+        back={{ href: `/${slug}/hr`, label: "Back to overview" }}
+      />
 
       <div className="flex flex-wrap gap-2 text-xs">
         <Filter href={query({ table: undefined, page: 0 })} active={!sp.table}>

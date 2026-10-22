@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MapPin, FileText } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { getSiteSummaries, type SiteSummary } from "@/lib/hr/queries";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Sites" };
 export const dynamic = "force-dynamic";
@@ -26,18 +27,11 @@ export default async function SitesPage({
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} - Sites
-        </p>
-        <h1 className="mt-2 text-4xl md:text-5xl font-black">Where the risk sits</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
-          One row per site, worst first. Readiness is the share of dated
-          certifications on that site that are neither expired nor due soon.
-          Records with no expiry date are left out of it, because they cannot
-          lapse.
-        </p>
-      </header>
+      <PageHeader
+        kicker="Sites"
+        title="Where the risk sits"
+        lede="One row per site, worst first. Readiness is the share of dated certifications on that site that are neither expired nor due soon. Records with no expiry date are left out of it, because they cannot lapse."
+      />
 
       {sites.length === 0 ? (
         <div className="bg-white border border-[var(--brand-line)] rounded-2xl p-12 text-center">

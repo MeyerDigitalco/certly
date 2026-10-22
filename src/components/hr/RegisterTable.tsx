@@ -57,7 +57,7 @@ export default function RegisterTable({
       sort === colKey && dir === "asc" ? "desc" : "asc";
     params.set("sort", colKey);
     params.set("dir", nextDir);
-    return `/${slug}/hr?${params.toString()}`;
+    return `/${slug}/hr/register?${params.toString()}`;
   }
 
   return (

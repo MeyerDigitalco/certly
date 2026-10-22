@@ -969,3 +969,21 @@ export async function getRegisterRows(
 }
 
 
+
+/**
+ * Every (employee, site) pair with at least one expired certificate, for
+ * the gate readiness count on the overview. People who have left are not
+ * in the view, so they cannot appear here.
+ */
+export async function getExpiredBySite(
+  orgId: string,
+): Promise<Array<{ employee_id: string; site: string | null }>> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("register_rows")
+    .select("employee_id, site")
+    .eq("organisation_id", orgId)
+    .eq("status", "expired");
+  if (error) throw error;
+  return (data ?? []) as Array<{ employee_id: string; site: string | null }>;
+}

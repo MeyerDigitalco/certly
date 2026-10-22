@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, Clock, CalendarDays, BookUser, Building2, FileBadge, Stamp } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { getRenewals, type RenewalRow } from "@/lib/hr/queries";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Renewals" };
 export const dynamic = "force-dynamic";
@@ -20,19 +21,19 @@ export default async function RenewalsPage({
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} - Renewals
-        </p>
-        <h1 className="mt-2 text-4xl md:text-5xl font-black">What lapses next</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
-          Certifications, identity documents, certified copies and the
-          company&rsquo;s own documents together, because a work permit running
-          out stops a person at the gate exactly like a lapsed induction does, and
-          an expired letter of good standing stops the whole crew. Sorted by how
-          little time is left.
-        </p>
-      </header>
+      <PageHeader
+        kicker="Renewals"
+        title="What lapses next"
+        lede={
+          <>
+            Certifications, identity documents, certified copies and the
+            company&rsquo;s own documents together, because a work permit running
+            out stops a person at the gate exactly like a lapsed induction does, and
+            an expired letter of good standing stops the whole crew. Sorted by how
+            little time is left.
+          </>
+        }
+      />
 
       {total === 0 ? (
         <div className="bg-white border border-[var(--brand-line)] rounded-2xl p-12 text-center">

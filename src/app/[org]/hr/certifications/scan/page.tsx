@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant, requireRole } from "@/lib/tenant";
 import {
   listEmployees,
@@ -8,6 +6,7 @@ import {
   getEmployee,
 } from "@/lib/hr/queries";
 import ScanClient from "./ScanClient";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Add a certification" };
 export const dynamic = "force-dynamic";
@@ -33,20 +32,12 @@ export default async function ScanCertificatePage({
 
   return (
     <div className="max-w-3xl">
-      <Link
-        href={`/${slug}/hr`}
-        className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-      >
-        <ArrowLeft size={12} />
-        Back to register
-      </Link>
-      <h1 className="mt-2 text-3xl font-black">Add a certification</h1>
-      <p className="mt-1 text-[var(--brand-slate)]">
-        Upload the document. Certly works out whether it is a training
-        certificate, a licence, an ID, a passport or a permit, reads the person
-        and the dates off it, matches them against this workspace, and shows you
-        everything to check. Nothing is saved until you confirm.
-      </p>
+      <PageHeader
+        kicker="Register"
+        title="Add a certification"
+        lede="Upload the document. Certly works out whether it is a training certificate, a licence, an ID, a passport or a permit, reads the person and the dates off it, matches them against this workspace, and shows you everything to check. Nothing is saved until you confirm."
+        back={{ href: `/${slug}/hr/register`, label: "Back to register" }}
+      />
 
       <div className="mt-8 bg-white border border-[var(--brand-line)] rounded-2xl p-8">
         <ScanClient

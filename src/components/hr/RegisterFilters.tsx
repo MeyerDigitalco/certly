@@ -31,7 +31,7 @@ export default function RegisterFilters({
       const next = new URLSearchParams(params.toString());
       if (search) next.set("search", search);
       else next.delete("search");
-      startTransition(() => router.push(`/${slug}/hr?${next.toString()}`));
+      startTransition(() => router.push(`/${slug}/hr/register?${next.toString()}`));
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -41,12 +41,12 @@ export default function RegisterFilters({
     const next = new URLSearchParams(params.toString());
     if (value) next.set(key, value);
     else next.delete(key);
-    startTransition(() => router.push(`/${slug}/hr?${next.toString()}`));
+    startTransition(() => router.push(`/${slug}/hr/register?${next.toString()}`));
   }
 
   function clearAll() {
     setSearch("");
-    startTransition(() => router.push(`/${slug}/hr`));
+    startTransition(() => router.push(`/${slug}/hr/register`));
   }
 
   const hasAny = search || site || trainingType || params.get("status");

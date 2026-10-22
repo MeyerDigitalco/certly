@@ -79,6 +79,8 @@ export default function Home() {
             <p className="stamp">
               No card required
               <br />
+              Mining or general industry, chosen at signup
+              <br />
               Crew loaded in an afternoon
             </p>
           </div>

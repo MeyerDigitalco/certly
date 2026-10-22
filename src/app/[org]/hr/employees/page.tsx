@@ -4,6 +4,7 @@ import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import { listEmployees } from "@/lib/hr/queries";
 import EmployeeListClient from "./EmployeeListClient";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Employees" };
 export const dynamic = "force-dynamic";
@@ -27,39 +28,39 @@ export default async function EmployeesPage({
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-            Employees
-          </p>
-          <h1 className="mt-2 text-4xl font-black">Staff master list</h1>
-          <p className="mt-2 text-[var(--brand-slate)]">
+      <PageHeader
+        kicker="Employees"
+        title="Staff master list"
+        lede={
+          <>
             {employees.length} employee{employees.length === 1 ? "" : "s"}{" "}
             {showAll ? "on file, including people who have left." : "currently on the register."}
             {canWrite ? " Select rows to delete in bulk." : ""}
-          </p>
-          <p className="mt-1 text-xs">
-            {showAll ? (
-              <Link href={`/${slug}/hr/employees`} className="font-bold text-[var(--brand-red)] hover:underline">
-                Hide people who have left
-              </Link>
-            ) : (
-              <Link href={`/${slug}/hr/employees?show=all`} className="font-bold text-[var(--brand-slate)] hover:text-[var(--brand-red)]">
-                Include people who have left
-              </Link>
-            )}
-          </p>
-        </div>
-        {canWrite ? (
-          <Link
-            href={`/${slug}/hr/employees/new`}
-            className="inline-flex items-center gap-2 bg-[var(--brand-red)] hover:bg-[var(--brand-red-deep)] text-white px-4 py-2.5 rounded-md font-bold text-sm transition"
-          >
-            <UserPlus size={14} />
-            New employee
-          </Link>
-        ) : null}
-      </header>
+            <span className="block mt-1 text-xs">
+              {showAll ? (
+                <Link href={`/${slug}/hr/employees`} className="font-bold text-[var(--brand-red)] hover:underline">
+                  Hide people who have left
+                </Link>
+              ) : (
+                <Link href={`/${slug}/hr/employees?show=all`} className="font-bold text-[var(--brand-slate)] hover:text-[var(--brand-red)]">
+                  Include people who have left
+                </Link>
+              )}
+            </span>
+          </>
+        }
+        actions={
+          canWrite ? (
+            <Link
+              href={`/${slug}/hr/employees/new`}
+              className="inline-flex items-center gap-2 bg-[var(--brand-red)] hover:bg-[var(--brand-red-deep)] text-white px-4 py-2.5 rounded-md font-bold text-sm transition"
+            >
+              <UserPlus size={14} />
+              New employee
+            </Link>
+          ) : null
+        }
+      />
 
       <form className="bg-white border border-[var(--brand-line)] rounded-2xl p-4 flex gap-2">
         <div className="relative flex-1">

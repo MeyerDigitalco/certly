@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant, requireRole } from "@/lib/tenant";
 import {
   getCertification,
@@ -9,6 +7,7 @@ import {
   getTrainingTypes,
 } from "@/lib/hr/queries";
 import CertForm from "../../CertForm";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Edit certification" };
 export const dynamic = "force-dynamic";
@@ -33,23 +32,15 @@ export default async function EditCertificationPage({
 
   return (
     <div className="max-w-2xl">
-      <Link
-        href={
-          employee
-            ? `/${slug}/hr/employees/${employee.id}`
-            : `/${slug}/hr`
-        }
-        className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-      >
-        <ArrowLeft size={12} />
-        {employee ? "Back to employee" : "Back to register"}
-      </Link>
-      <h1 className="mt-2 text-3xl font-black">Edit certification</h1>
-      {employee ? (
-        <p className="mt-1 text-[var(--brand-slate)]">
-          {employee.surname}, {employee.names}
-        </p>
-      ) : null}
+      <PageHeader
+        kicker="Register"
+        title="Edit certification"
+        lede={employee ? `${employee.surname}, ${employee.names}` : undefined}
+        back={{
+          href: employee ? `/${slug}/hr/employees/${employee.id}` : `/${slug}/hr`,
+          label: employee ? "Back to employee" : "Back to register",
+        }}
+      />
 
       <div className="mt-8 bg-white border border-[var(--brand-line)] rounded-2xl p-8">
         <CertForm

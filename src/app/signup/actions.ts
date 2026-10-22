@@ -21,6 +21,7 @@ const SignupSchema = z.object({
     ),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  sector: z.enum(["mining", "general"], { message: "Choose the sector you work in" }),
 });
 
 /**
@@ -41,12 +42,13 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
     slug: formData.get("slug"),
     email: formData.get("email"),
     password: formData.get("password"),
+    sector: formData.get("sector") ?? "",
   });
   if (!parsed.success) {
     const first = parsed.error.issues[0];
     return { ok: false, error: first.message, field: String(first.path[0]) };
   }
-  const { company, slug, email, password } = parsed.data;
+  const { company, slug, email, password, sector } = parsed.data;
 
   const admin: any = createAdminClient();
 
@@ -104,6 +106,7 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
     p_slug: slug,
     p_name: company,
     p_user_id: userId,
+    p_sector: sector,
   });
   if (provErr) {
     // Roll back a freshly-created user so a failed signup can be retried.

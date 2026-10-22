@@ -1,6 +1,7 @@
 export type UUID = string;
 
 export type Role = "owner" | "admin" | "viewer";
+export type Sector = "mining" | "general";
 export type Plan = "trial" | "standard";
 export type SubscriptionStatus = "none" | "active" | "past_due" | "cancelled";
 
@@ -13,6 +14,7 @@ export interface Organisation {
   trial_ends_at: string;
   due_soon_days: number;
   default_retirement_age: number;
+  sector: Sector;
   seta: string | null;
   sdl_number: string | null;
   ee_reference: string | null;

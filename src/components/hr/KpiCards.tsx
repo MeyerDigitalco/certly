@@ -69,8 +69,8 @@ export default function KpiCards({
             key={c.status}
             href={
               isActive
-                ? `/${slug}/hr`
-                : `/${slug}/hr?${new URLSearchParams({ status: c.status })}`
+                ? `/${slug}/hr/register`
+                : `/${slug}/hr/register?${new URLSearchParams({ status: c.status })}`
             }
             className={`block bg-white border-2 rounded-2xl p-5 transition hover:shadow-md ${
               isActive ? c.borderActive : "border-[var(--brand-line)]"

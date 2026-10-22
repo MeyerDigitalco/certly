@@ -10,6 +10,7 @@ import {
 import { isCompanyCategory } from "@/lib/hr/company-documents";
 import { assertWritable } from "@/lib/billing/access";
 import { normaliseTrainingTypeName } from "@/lib/hr/training-type-name";
+import { isSector } from "@/lib/sector";
 import {
   isAbsenceReason,
   isGender,
@@ -2618,6 +2619,11 @@ export async function updateReportingSettings(
     }
     patch.default_retirement_age = n;
   }
+  if (formData.has("sector")) {
+    const v = String(formData.get("sector") ?? "").trim();
+    if (!isSector(v)) return { ok: false, error: "Choose a sector", field: "sector" };
+    patch.sector = v;
+  }
   if (Object.keys(patch).length === 0) return { ok: true };
 
   const guard = await assertAdminUser(orgId);
@@ -2628,6 +2634,7 @@ export async function updateReportingSettings(
   if (error) return { ok: false, error: error.message ?? "Could not save the settings." };
 
   revalidateSkillsPaths(slug);
+  revalidatePath(`/${slug}/hr`);
   revalidatePath(`/${slug}/hr/reports/employment-equity`);
   revalidatePath(`/${slug}/hr/reports/retirement`);
   return { ok: true };

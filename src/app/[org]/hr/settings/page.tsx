@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowLeft, ShieldCheck, KeyRound, Users, Building, GraduationCap, Download, CreditCard,
+  ShieldCheck, KeyRound, Users, Building, GraduationCap, Download, CreditCard,
 } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { isOwner, isAdmin } from "@/lib/auth/roles";
@@ -9,6 +9,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getTrainingTypesWithUsage } from "@/lib/hr/queries";
 import AdminRoster from "./AdminRoster";
 import TrainingTypesManager from "./TrainingTypesManager";
+import WorkspaceProfile from "./WorkspaceProfile";
+import { sectorProfile } from "@/lib/sector";
+import PageHeader from "@/components/app/PageHeader";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -59,20 +62,29 @@ export default async function SettingsPage({
 
   return (
     <div className="max-w-4xl space-y-8">
-      <div>
-        <Link href={`/${slug}/hr`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1">
-          <ArrowLeft size={12} /> Back to register
-        </Link>
-        <h1 className="mt-2 text-3xl font-black">Settings</h1>
-        <p className="mt-2 text-[var(--brand-slate)]">
-          Workspace configuration, admin roster, and account.
-        </p>
-      </div>
+      <PageHeader
+        kicker="Workspace"
+        title="Settings"
+        lede="Workspace configuration, admin roster, and account."
+        back={{ href: `/${slug}/hr`, label: "Back to overview" }}
+      />
 
       <Section icon={Building} title="Workspace" subtitle="Your organisation on Certly.">
         <Kv label="Name" value={ctx.org.name} />
         <Kv label="URL" value={`certly.co.za/${ctx.org.slug}`} mono />
+        <Kv label="Sector" value={sectorProfile(ctx.org.sector).label} />
+        <div className="pt-3 border-t border-[var(--brand-line)]">
+          <WorkspaceProfile
+            orgId={ctx.org.id}
+            slug={slug}
+            sector={ctx.org.sector}
+            seta={ctx.org.seta}
+            sdlNumber={ctx.org.sdl_number}
+            eeReference={ctx.org.ee_reference}
+            defaultRetirementAge={ctx.org.default_retirement_age}
+            canWrite={isAdmin(ctx.role)}
+          />
+        </div>
         {isOwner(ctx.role) ? (
           <div className="pt-3 border-t border-[var(--brand-line)]">
             <Link href={`/${slug}/hr/billing`}

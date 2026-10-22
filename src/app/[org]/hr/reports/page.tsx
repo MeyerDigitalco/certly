@@ -12,6 +12,7 @@ import {
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import { parsePeriod, periodKey } from "@/lib/hr/operations";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Monthly reports" };
 export const dynamic = "force-dynamic";
@@ -90,17 +91,11 @@ export default async function ReportsIndexPage({
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} · Reports
-        </p>
-        <h1 className="mt-2 text-4xl md:text-5xl font-black">Monthly reporting</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
-          The pack a mine or a head office asks a contractor for every month,
-          built from the register rather than retyped into a slide. Pick a
-          report, pick a month, download the workbook.
-        </p>
-      </header>
+      <PageHeader
+        kicker="Reports"
+        title="Monthly reporting"
+        lede="The pack a mine or a head office asks a contractor for every month, built from the register rather than retyped into a slide. Pick a report, pick a month, download the workbook."
+      />
 
       <div className="grid md:grid-cols-2 gap-4">
         {REPORTS.map((r) => (

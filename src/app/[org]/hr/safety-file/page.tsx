@@ -5,6 +5,7 @@ import { idTypeLabel, countryLabel } from "@/lib/validation/identification";
 import { isAdmin } from "@/lib/auth/roles";
 import { todayIso } from "@/lib/certifications/status";
 import PrintButton from "./PrintButton";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Safety file" };
 export const dynamic = "force-dynamic";
@@ -70,18 +71,11 @@ export default async function SafetyFilePage({
   return (
     <div className="space-y-6">
       <div className="no-print space-y-4">
-        <header>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-            {ctx.org.name} - Safety file
-          </p>
-          <h1 className="mt-2 text-4xl font-black">Build the pack</h1>
-          <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
-            Certly drafts the employee half of a contractor safety file from your
-            register. Pick the client and the site, check the outstanding list,
-            then print to PDF. Company documents, appointments and the risk
-            assessment are still yours to attach.
-          </p>
-        </header>
+        <PageHeader
+          kicker="Safety file"
+          title="Build the pack"
+          lede="Certly drafts the employee half of a contractor safety file from your register. Pick the client and the site, check the outstanding list, then print to PDF. Company documents, appointments and the risk assessment are still yours to attach."
+        />
 
         <form
           method="get"

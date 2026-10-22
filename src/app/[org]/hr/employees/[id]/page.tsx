@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil, ScanLine } from "lucide-react";
+import { Pencil, ScanLine } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { GENDERS, OCCUPATIONAL_LEVEL_SHORT, POPULATION_GROUPS } from "@/lib/hr/operations";
 import { isAdmin } from "@/lib/auth/roles";
@@ -9,6 +9,7 @@ import { idTypeLabel, countryLabel } from "@/lib/validation/identification";
 import EmployeeCertsClient from "./EmployeeCertsClient";
 import IdentityFileCard from "./IdentityFileCard";
 import TerminationCard from "./TerminationCard";
+import PageHeader from "@/components/app/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -28,31 +29,21 @@ export default async function EmployeeDetailPage({
 
   return (
     <div className="space-y-8">
-      <div>
-        <Link
-          href={`/${slug}/hr/employees`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} />
-          Back to employees
-        </Link>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-black">
-              {employee.surname},{" "}
-              <span className="text-[var(--brand-slate)] font-black">
-                {employee.names}
-              </span>
-            </h1>
-            <p className="mt-2 font-mono text-sm text-[var(--brand-slate)]">
-              {idTypeLabel(employee.id_type)} {employee.id_number}
-              {employee.id_country
-                ? ` (${countryLabel(employee.id_country)})`
-                : ""}
-            </p>
-          </div>
-          {canWrite ? (
-            <div className="flex flex-wrap gap-2">
+      <PageHeader
+        kicker="Employees"
+        title={`${employee.surname}, ${employee.names}`}
+        lede={
+          <span className="font-mono text-sm">
+            {idTypeLabel(employee.id_type)} {employee.id_number}
+            {employee.id_country
+              ? ` (${countryLabel(employee.id_country)})`
+              : ""}
+          </span>
+        }
+        back={{ href: `/${slug}/hr/employees`, label: "Back to employees" }}
+        actions={
+          canWrite ? (
+            <>
               <Link
                 href={`/${slug}/hr/employees/${employee.id}/edit`}
                 className="inline-flex items-center gap-2 border border-[var(--brand-ink)] text-[var(--brand-ink)] hover:bg-[var(--brand-ink)] hover:text-white px-4 py-2.5 rounded-md font-bold text-sm transition"
@@ -67,10 +58,10 @@ export default async function EmployeeDetailPage({
                 <ScanLine size={14} />
                 Add certification
               </Link>
-            </div>
-          ) : null}
-        </div>
-      </div>
+            </>
+          ) : null
+        }
+      />
 
       <section className="grid sm:grid-cols-4 gap-4">
         <Info label="Site" value={employee.site} />

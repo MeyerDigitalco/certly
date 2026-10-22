@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant, requireRole } from "@/lib/tenant";
 import { getEmployee, getSiteOptions } from "@/lib/hr/queries";
 import EmployeeForm from "../../EmployeeForm";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Edit employee" };
 export const dynamic = "force-dynamic";
@@ -25,14 +24,11 @@ export default async function EditEmployeePage({
 
   return (
     <div className="max-w-2xl">
-      <Link
-        href={`/${slug}/hr/employees/${id}`}
-        className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-      >
-        <ArrowLeft size={12} />
-        Back to employee
-      </Link>
-      <h1 className="mt-2 text-3xl font-black">Edit employee</h1>
+      <PageHeader
+        kicker="Employees"
+        title="Edit employee"
+        back={{ href: `/${slug}/hr/employees/${id}`, label: "Back to employee" }}
+      />
       <div className="mt-8 bg-white border border-[var(--brand-line)] rounded-2xl p-8">
         <EmployeeForm
           orgId={ctx.org.id}

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Pickaxe, Building2, Check } from "lucide-react";
 import { signUp } from "./actions";
+import { SECTORS } from "@/lib/sector";
+import type { Sector } from "@/lib/types/database";
 
 function slugify(s: string): string {
   return s
@@ -20,6 +23,7 @@ export default function SignupForm() {
   const [company, setCompany] = useState("");
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
+  const [sector, setSector] = useState<Sector | "">("");
 
   const effectiveSlug = slugEdited ? slug : slugify(company);
 
@@ -28,6 +32,11 @@ export default function SignupForm() {
     setError(null);
     const form = new FormData(e.currentTarget);
     form.set("slug", effectiveSlug);
+    form.set("sector", sector);
+    if (!sector) {
+      setError({ message: "Choose the sector you work in", field: "sector" });
+      return;
+    }
     startTransition(async () => {
       const res = await signUp(form);
       if (res && !res.ok) setError({ message: res.error, field: res.field });
@@ -41,6 +50,54 @@ export default function SignupForm() {
           {error.message}
         </div>
       ) : null}
+
+      <fieldset>
+        <legend className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+          Where do your people work?
+        </legend>
+        <p className="mt-1 text-xs text-[var(--brand-slate)]">
+          This sets the training catalogue you start with and the defaults
+          for your reports. Everything is available to both. You can change
+          it later in settings.
+        </p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {SECTORS.map((s) => {
+            const Icon = s.value === "mining" ? Pickaxe : Building2;
+            const active = sector === s.value;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => setSector(s.value)}
+                aria-pressed={active}
+                className={`relative text-left border rounded-xl p-4 transition ${
+                  active
+                    ? "border-[var(--brand-ink)] bg-[var(--brand-cream)]"
+                    : error?.field === "sector"
+                      ? "border-red-400"
+                      : "border-[var(--brand-line)] hover:border-[var(--brand-ink)]"
+                }`}
+              >
+                {active ? (
+                  <span className="absolute top-3 right-3 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--brand-red)] text-white">
+                    <Check size={12} />
+                  </span>
+                ) : null}
+                <Icon size={20} className="text-[var(--brand-red)]" />
+                <p className="mt-2 font-black">{s.label}</p>
+                <p className="mt-1 text-xs text-[var(--brand-slate)] leading-relaxed">{s.blurb}</p>
+                <p className="mt-2 text-[10px] uppercase tracking-widest text-[var(--brand-slate)]">
+                  Starts with
+                </p>
+                <p className="text-xs text-[var(--brand-ink)]">{s.sampleTypes.join(", ")}</p>
+              </button>
+            );
+          })}
+        </div>
+        {error?.field === "sector" ? (
+          <p className="mt-1 text-xs text-red-600">{error.message}</p>
+        ) : null}
+      </fieldset>
 
       <div>
         <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">

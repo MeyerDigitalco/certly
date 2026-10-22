@@ -1,0 +1,356 @@
+import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  Download,
+  FileBadge,
+  MinusCircle,
+  Scale,
+  ShieldCheck,
+} from "lucide-react";
+import type { Overview, Deadline } from "@/lib/hr/overview";
+import type { SectorProfile } from "@/lib/sector";
+import { GUIDES } from "@/lib/guides";
+import PageHeader from "@/components/app/PageHeader";
+
+/**
+ * The overview, rendered from an already computed Overview. Kept apart from
+ * the page that fetches so it can be rendered with fixture data in a browser
+ * without a database, which is how its layout gets checked.
+ */
+
+const REPORT_TITLES: Record<string, string> = {
+  "staff-movement": "Staff movement",
+  "fault-terminations": "Fault terminations",
+  retirement: "Overdue retirement",
+  "labour-plan": "Labour plan and onboarding",
+  "labour-unavailability": "Labour unavailability",
+  "employment-equity": "Employment equity",
+  "skills-development": "Skills development",
+};
+
+export default function OverviewView({
+  o,
+  slug,
+  profile,
+  canWrite,
+  today,
+}: {
+  o: Overview;
+  slug: string;
+  profile: SectorProfile;
+  canWrite: boolean;
+  today: string;
+}) {
+  const scoreTone = o.score.pct >= 90 ? "green" : o.score.pct >= 70 ? "amber" : "red";
+  const weakest = [...o.score.components]
+    .filter((c) => c.pct !== null)
+    .sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0))[0];
+
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        kicker={`${profile.label} · ${today}`}
+        title="What would be missing if someone asked today"
+        lede={
+          o.headcount === 0
+            ? "Load your people and their certificates and this page starts answering for you."
+            : `${o.headcount} people in service across ${o.gate.sites.length} ${o.gate.sites.length === 1 ? "site" : "sites"}. ${
+                o.gate.cannotPass === 0
+                  ? `Everyone can pass a ${profile.gateNoun} check.`
+                  : `${o.gate.cannotPass} cannot pass a ${profile.gateNoun} check right now.`
+              }`
+        }
+        actions={
+          canWrite ? (
+            <a
+              href={`/${slug}/hr/evidence`}
+              className="inline-flex items-center gap-2 bg-[var(--brand-ink)] hover:bg-[var(--brand-charcoal)] text-white px-4 py-2 rounded-md text-sm font-bold transition"
+            >
+              <Download size={14} />
+              Inspection evidence pack
+            </a>
+          ) : null
+        }
+      />
+
+      <section className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-6">
+        <div className="space-y-4">
+          <SectionLabel icon={CalendarClock}>What is due, and what is still missing</SectionLabel>
+          {o.deadlines.map((d) => (
+            <DeadlineCard key={d.key} d={d} />
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          <SectionLabel icon={ShieldCheck}>Compliance score</SectionLabel>
+          <div className="bg-white border border-[var(--brand-line)] rounded-2xl p-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+                  Weighted across what matters
+                </p>
+                <p
+                  className={`mt-1 text-6xl font-black leading-none ${
+                    scoreTone === "green"
+                      ? "text-emerald-700"
+                      : scoreTone === "amber"
+                        ? "text-amber-700"
+                        : "text-red-700"
+                  }`}
+                >
+                  {o.score.pct}
+                  <span className="text-2xl">%</span>
+                </p>
+              </div>
+              <p className="text-xs text-[var(--brand-slate)] max-w-[14rem] text-right">
+                {!weakest
+                  ? "Nothing to score yet. Load people and certificates."
+                  : (weakest.pct ?? 0) >= 90
+                    ? "Nothing is dragging it. Keep the renewals list empty and this stays green."
+                    : `Pulling it down: ${weakest.label.toLowerCase()} at ${weakest.pct}%.`}
+              </p>
+            </div>
+            <ul className="mt-5 divide-y divide-[var(--brand-line)]">
+              {o.score.components.map((c) => (
+                <li key={c.key} className="py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href={c.href}
+                      className="text-sm font-bold hover:text-[var(--brand-red)]"
+                    >
+                      {c.label}
+                    </Link>
+                    <span className="font-mono text-sm font-bold">
+                      {c.pct === null ? "n/a" : `${c.pct}%`}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 bg-[var(--brand-cream)] rounded-sm overflow-hidden">
+                    <div
+                      className={`h-full ${
+                        c.pct === null
+                          ? "bg-[var(--brand-line)]"
+                          : c.pct >= 90
+                            ? "bg-emerald-600"
+                            : c.pct >= 70
+                              ? "bg-amber-600"
+                              : "bg-red-600"
+                      }`}
+                      style={{ width: `${c.pct ?? 0}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--brand-slate)]">
+                    {c.detail}
+                    <span className="ml-2 text-[var(--brand-line)]">·</span>
+                    <span className="ml-2">weight {c.weight}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <SectionLabel icon={ShieldCheck}>
+          {profile.gateNoun === "gate" ? "Gate readiness by site" : "Site access readiness"}
+        </SectionLabel>
+        {o.gate.sites.length === 0 ? (
+          <Empty>
+            No sites yet. Put a site on each person and this shows who can pass a check
+            where.
+          </Empty>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {o.gate.sites.map((s) => (
+              <Link
+                key={s.site}
+                href={`/${slug}/hr/register?site=${encodeURIComponent(s.site)}&status=expired`}
+                className="bg-white border border-[var(--brand-line)] hover:border-[var(--brand-ink)] rounded-2xl p-5 transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-black">{s.site}</p>
+                  <p
+                    className={`font-mono text-sm font-bold ${
+                      s.cannotPass === 0 ? "text-emerald-700" : "text-red-700"
+                    }`}
+                  >
+                    {s.canPass}/{s.people}
+                  </p>
+                </div>
+                <div className="mt-3 h-2 bg-[var(--brand-cream)] rounded-sm overflow-hidden flex">
+                  <div
+                    className="h-full bg-emerald-600"
+                    style={{ width: `${s.people === 0 ? 0 : (s.canPass / s.people) * 100}%` }}
+                  />
+                  <div
+                    className="h-full bg-red-600"
+                    style={{ width: `${s.people === 0 ? 0 : (s.cannotPass / s.people) * 100}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-[var(--brand-slate)]">
+                  {s.cannotPass === 0
+                    ? `All ${s.people} can pass`
+                    : `${s.cannotPass} ${s.cannotPass === 1 ? "person" : "people"} with an expired ticket`}
+                  {s.dueSoonRecords > 0 ? ` · ${s.dueSoonRecords} due soon` : ""}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="grid md:grid-cols-2 gap-6">
+        <div>
+          <SectionLabel icon={ClipboardList}>Reports for a {profile.short.toLowerCase()} contractor</SectionLabel>
+          <ul className="bg-white border border-[var(--brand-line)] rounded-2xl divide-y divide-[var(--brand-line)]">
+            {o.pinnedReports.map((key) => (
+              <li key={key}>
+                <Link
+                  href={`/${slug}/hr/reports/${key}`}
+                  className="flex items-center justify-between px-5 py-3 text-sm font-bold hover:text-[var(--brand-red)]"
+                >
+                  {REPORT_TITLES[key] ?? key}
+                  <ArrowRight size={14} />
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link
+                href={`/${slug}/hr/reports`}
+                className="flex items-center justify-between px-5 py-3 text-xs font-bold text-[var(--brand-slate)] hover:text-[var(--brand-red)]"
+              >
+                All seven reports
+                <ArrowRight size={12} />
+              </Link>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <SectionLabel icon={FileBadge}>Guides</SectionLabel>
+          <ul className="bg-white border border-[var(--brand-line)] rounded-2xl divide-y divide-[var(--brand-line)]">
+            {o.guides.map((slugKey) => {
+              const g = GUIDES.find((x) => x.slug === slugKey);
+              if (!g) return null;
+              return (
+                <li key={g.slug}>
+                  <Link
+                    href={`/guides/${g.slug}`}
+                    className="block px-5 py-3 hover:text-[var(--brand-red)]"
+                  >
+                    <span className="text-sm font-bold">{g.heading}</span>
+                    {g.deadline ? (
+                      <span className="block text-[10px] uppercase tracking-widest text-[var(--brand-slate)] mt-0.5">
+                        {g.deadline}
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DeadlineCard({ d }: { d: Deadline }) {
+  const tone =
+    d.status === "late" || d.status === "missing"
+      ? "red"
+      : d.status === "urgent"
+        ? "red"
+        : d.status === "behind"
+          ? "amber"
+          : d.status === "voluntary"
+            ? "slate"
+            : "green";
+  const Icon =
+    tone === "red" ? AlertTriangle : tone === "amber" ? CalendarClock : tone === "slate" ? MinusCircle : CheckCircle2;
+  const border =
+    tone === "red"
+      ? "border-red-300"
+      : tone === "amber"
+        ? "border-amber-300"
+        : "border-[var(--brand-line)]";
+  const colour =
+    tone === "red"
+      ? "text-red-700"
+      : tone === "amber"
+        ? "text-amber-700"
+        : tone === "green"
+          ? "text-emerald-700"
+          : "text-[var(--brand-slate)]";
+
+  return (
+    <Link
+      href={d.href}
+      className={`block bg-white border ${border} rounded-2xl p-5 hover:border-[var(--brand-ink)] transition`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-widest font-bold text-[var(--brand-slate)]">
+            {d.title}
+          </p>
+          <p className={`mt-1 text-lg font-black leading-snug ${colour}`}>
+            <Icon size={16} className="inline -mt-0.5 mr-1.5" />
+            {d.headline}
+          </p>
+          <p className="mt-1.5 text-xs text-[var(--brand-slate)]">{d.detail}</p>
+        </div>
+        <div className="text-right shrink-0">
+          {d.due ? (
+            <>
+              <p className={`font-mono text-2xl font-black leading-none ${colour}`}>
+                {d.daysLeft < 0 ? Math.abs(d.daysLeft) : d.daysLeft}
+              </p>
+              <p className="text-[10px] uppercase tracking-widest text-[var(--brand-slate)] mt-1">
+                {d.daysLeft < 0 ? "days over" : "days left"}
+              </p>
+              <p className="font-mono text-[10px] text-[var(--brand-slate)] mt-1">{d.due}</p>
+            </>
+          ) : (
+            <Scale size={20} className="text-[var(--brand-slate)]" />
+          )}
+        </div>
+      </div>
+      {d.readinessPct !== null ? (
+        <div className="mt-4 h-1.5 bg-[var(--brand-cream)] rounded-sm overflow-hidden">
+          <div
+            className={`h-full ${
+              tone === "green" ? "bg-emerald-600" : tone === "amber" ? "bg-amber-600" : tone === "red" ? "bg-red-600" : "bg-[var(--brand-slate)]"
+            }`}
+            style={{ width: `${d.readinessPct}%` }}
+          />
+        </div>
+      ) : null}
+    </Link>
+  );
+}
+
+function SectionLabel({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof CalendarClock;
+  children: React.ReactNode;
+}) {
+  return (
+    <p className="text-[11px] uppercase tracking-[0.22em] font-bold text-[var(--brand-red)] flex items-center gap-2 mb-3">
+      <Icon size={13} />
+      {children}
+    </p>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-[var(--brand-cream)] border border-[var(--brand-line)] rounded-2xl p-5 text-sm text-[var(--brand-slate)]">
+      {children}
+    </div>
+  );
+}

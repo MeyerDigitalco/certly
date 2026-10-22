@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Users, Receipt, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Users, Receipt, ShieldCheck, AlertTriangle } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { isOwner } from "@/lib/auth/roles";
 import { getBillingState } from "@/lib/billing/access";
@@ -16,6 +15,7 @@ import { payfastConfig, checkoutFields } from "@/lib/billing/payfast";
 import PayFastForm from "./PayFastForm";
 import CloseAccount from "./CloseAccount";
 import CancelSubscription from "./CancelSubscription";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Billing" };
 export const dynamic = "force-dynamic";
@@ -66,21 +66,19 @@ export default async function BillingPage({
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
-        <Link
-          href={`/${slug}/hr`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to register
-        </Link>
-        <h1 className="mt-2 text-3xl font-black">Billing</h1>
-        <p className="mt-2 text-[var(--brand-slate)]">
-          One plan. {formatRands(BASE_MONTHLY_CENTS)} a month covers{" "}
-          {INCLUDED_SEATS} people on the register, then{" "}
-          {formatRands(EXTRA_SEAT_CENTS)} for each person above that. No setup
-          fee, no contract, cancel whenever.
-        </p>
-      </div>
+      <PageHeader
+        kicker="Workspace"
+        title="Billing"
+        lede={
+          <>
+            One plan. {formatRands(BASE_MONTHLY_CENTS)} a month covers{" "}
+            {INCLUDED_SEATS} people on the register, then{" "}
+            {formatRands(EXTRA_SEAT_CENTS)} for each person above that. No setup
+            fee, no contract, cancel whenever.
+          </>
+        }
+        back={{ href: `/${slug}/hr`, label: "Back to overview" }}
+      />
 
       {sp.paid === "1" ? (
         <p className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl px-4 py-3 text-sm">

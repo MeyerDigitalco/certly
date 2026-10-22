@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import ImportClient from "./ImportClient";
+import PageHeader from "@/components/app/PageHeader";
 
 export const metadata = { title: "Import" };
 export const dynamic = "force-dynamic";
@@ -19,21 +18,12 @@ export default async function ImportPage({
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to register
-        </Link>
-        <h1 className="mt-2 text-3xl font-black">Import from a spreadsheet</h1>
-        <p className="mt-2 text-[var(--brand-slate)]">
-          For the first load, when your register already exists in Excel and
-          nobody is going to retype four hundred rows. People are matched on
-          document number, so running the same file twice updates rather than
-          duplicates.
-        </p>
-      </div>
+      <PageHeader
+        kicker="Register"
+        title="Import from a spreadsheet"
+        lede="For the first load, when your register already exists in Excel and nobody is going to retype four hundred rows. People are matched on document number, so running the same file twice updates rather than duplicates."
+        back={{ href: `/${slug}/hr/register`, label: "Back to register" }}
+      />
 
       <ImportClient orgId={ctx.org.id} slug={slug} />
 
