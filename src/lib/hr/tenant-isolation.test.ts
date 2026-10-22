@@ -31,6 +31,7 @@ const TENANT_TABLES = [
   "onboarding_candidates",
   "absences",
   "training_plans",
+  "compliance_snapshots",
 ];
 
 const KEYED_BY_OWN_ID = ["organisations"];

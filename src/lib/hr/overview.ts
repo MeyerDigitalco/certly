@@ -329,3 +329,66 @@ export function buildOverview(input: OverviewInput, slug: string): Overview {
     guides: profile.guides,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Trend                                                               */
+/* ------------------------------------------------------------------ */
+
+export interface TrendPoint {
+  date: string;
+  score: number;
+}
+
+export interface Trend {
+  /** Score roughly 30 days ago, or null when there is no history that old. */
+  monthAgo: number | null;
+  delta: number | null;
+  /** One point per ISO week over the window, oldest first, today appended. */
+  points: TrendPoint[];
+  daysOfHistory: number;
+}
+
+/**
+ * The direction of travel. Picks the snapshot closest to 30 days before
+ * today for the comparison, and thins the history to one point per week
+ * so the line stays readable however often the page was opened.
+ */
+export function buildTrend(
+  history: Array<{ taken_on: string; score: number }>,
+  today: string,
+  todayScore: number,
+): Trend {
+  const past = history.filter((h) => h.taken_on < today);
+  const target = daysBetween("1970-01-01", today) - 30;
+  let monthAgo: { taken_on: string; score: number } | null = null;
+  let best = Number.POSITIVE_INFINITY;
+  for (const h of past) {
+    const dist = Math.abs(daysBetween("1970-01-01", h.taken_on) - target);
+    if (dist < best && dist <= 10) {
+      best = dist;
+      monthAgo = h;
+    }
+  }
+
+  const byWeek = new Map<string, { taken_on: string; score: number }>();
+  for (const h of past) {
+    const d = new Date(Date.parse(h.taken_on));
+    const dayOfWeek = (d.getUTCDay() + 6) % 7;
+    const monday = new Date(d.getTime() - dayOfWeek * 86_400_000).toISOString().slice(0, 10);
+    const existing = byWeek.get(monday);
+    if (!existing || h.taken_on > existing.taken_on) byWeek.set(monday, h);
+  }
+  const points: TrendPoint[] = [...byWeek.values()]
+    .sort((a, b) => (a.taken_on < b.taken_on ? -1 : 1))
+    .slice(-12)
+    .map((h) => ({ date: h.taken_on, score: h.score }));
+  points.push({ date: today, score: todayScore });
+
+  const oldest = past[0]?.taken_on;
+  return {
+    monthAgo: monthAgo?.score ?? null,
+    delta: monthAgo ? todayScore - monthAgo.score : null,
+    points,
+    daysOfHistory: oldest ? daysBetween(oldest, today) : 0,
+  };
+}

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
+import PageHeader from "@/components/app/PageHeader";
 import { isAdmin } from "@/lib/auth/roles";
 import { siteOf } from "@/lib/hr/operations";
 import { getAbsences, getEmployeesForReports } from "@/lib/reports/data";
@@ -60,26 +59,18 @@ export default async function AbsenceLogPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr/reports/labour-unavailability`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to report
-        </Link>
-      </div>
-
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} · Labour unavailability
-        </p>
-        <h1 className="mt-2 text-3xl md:text-4xl font-black">Absence log</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
+      <PageHeader
+        kicker="Labour unavailability"
+        title="Absence log"
+        lede={
+          <>
           Every spell of absence on the register: leave, sick days, injury and no shows.
           Record a spell for one person or a whole crew in one go. The monthly Labour
           unavailability report counts the days inside each month from this log.
-        </p>
-      </header>
+          </>
+        }
+        back={{ href: `/${slug}/hr/reports/labour-unavailability`, label: "Back to report" }}
+      />
 
       <AbsenceLog orgId={ctx.org.id} slug={slug} people={people} spells={spells} focus={focus} />
     </div>

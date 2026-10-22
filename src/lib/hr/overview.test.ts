@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildOverview,
+  buildTrend,
   hasFullDeclaration,
   nextAnnual,
   daysBetween,
@@ -211,5 +212,46 @@ describe("buildOverview", () => {
   it("pins reports by sector", () => {
     expect(buildOverview(input({ sector: "mining" }), "acme").pinnedReports[0]).toBe("staff-movement");
     expect(buildOverview(input({ sector: "general" }), "acme").pinnedReports[0]).toBe("employment-equity");
+  });
+});
+
+describe("buildTrend", () => {
+  const day = (n: number) => new Date(Date.UTC(2026, 9, 22) - n * 86_400_000).toISOString().slice(0, 10);
+
+  it("has no comparison with no history and still plots today", () => {
+    const t = buildTrend([], "2026-10-22", 85);
+    expect(t.monthAgo).toBeNull();
+    expect(t.delta).toBeNull();
+    expect(t.points).toEqual([{ date: "2026-10-22", score: 85 }]);
+    expect(t.daysOfHistory).toBe(0);
+  });
+
+  it("compares against the snapshot nearest to 30 days ago within a 10 day tolerance", () => {
+    const history = [
+      { taken_on: day(45), score: 60 },
+      { taken_on: day(34), score: 70 },
+      { taken_on: day(27), score: 74 },
+      { taken_on: day(1), score: 84 },
+    ];
+    const t = buildTrend(history, "2026-10-22", 85);
+    expect(t.monthAgo).toBe(74);
+    expect(t.delta).toBe(11);
+    expect(t.daysOfHistory).toBe(45);
+  });
+
+  it("ignores a lone snapshot that is too old to count as a month ago", () => {
+    const t = buildTrend([{ taken_on: day(60), score: 50 }], "2026-10-22", 85);
+    expect(t.monthAgo).toBeNull();
+    expect(t.delta).toBeNull();
+  });
+
+  it("thins daily snapshots to one per week and keeps the latest of each", () => {
+    const history = Array.from({ length: 21 }, (_, i) => ({ taken_on: day(21 - i), score: 60 + i }));
+    const t = buildTrend(history, "2026-10-22", 85);
+    expect(t.points.length).toBeLessThanOrEqual(5);
+    expect(t.points[t.points.length - 1]).toEqual({ date: "2026-10-22", score: 85 });
+    for (let i = 1; i < t.points.length; i += 1) {
+      expect(t.points[i].date > t.points[i - 1].date).toBe(true);
+    }
   });
 });

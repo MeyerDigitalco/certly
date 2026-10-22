@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
+import PageHeader from "@/components/app/PageHeader";
 import { isAdmin } from "@/lib/auth/roles";
 import { getTrainingTypesForReports } from "@/lib/reports/data";
 import TrainingTypeDetails from "./TrainingTypeDetails";
@@ -28,27 +27,19 @@ export default async function TrainingTypesPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr/reports/skills-development`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to report
-        </Link>
-      </div>
-
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} · Skills development
-        </p>
-        <h1 className="mt-2 text-3xl md:text-4xl font-black">Course details</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
+      <PageHeader
+        kicker="Skills development"
+        title="Course details"
+        lede={
+          <>
           What the SETA asks about each course: category, hours, cost per person, provider,
           NQF level and accreditation. Each change saves on its own as you make it. Untick
           counts for ATR on site inductions and anything else that is not training in the
           SETA sense, so it stays out of the Annual Training Report.
-        </p>
-      </header>
+          </>
+        }
+        back={{ href: `/${slug}/hr/reports/skills-development`, label: "Back to report" }}
+      />
 
       <TrainingTypeDetails orgId={ctx.org.id} slug={slug} types={ordered} />
     </div>

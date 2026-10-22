@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
+import PageHeader from "@/components/app/PageHeader";
 import { isAdmin } from "@/lib/auth/roles";
 import { getEmployeesForReports, getOnboardingCandidates } from "@/lib/reports/data";
 import TrackerBoard from "./TrackerBoard";
@@ -40,27 +39,19 @@ export default async function OnboardingTrackerPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr/reports/labour-plan`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to report
-        </Link>
-      </div>
-
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} · Onboarding
-        </p>
-        <h1 className="mt-2 text-3xl md:text-4xl font-black">Onboarding tracker</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
+      <PageHeader
+        kicker="Labour plan"
+        title="Onboarding tracker"
+        lede={
+          <>
           Every candidate from first screening to first shift. Keep the stage and dates
           current and the monthly Labour plan report shows the pipeline behind each
           gap. When someone passes out, engage them here and Certly adds them to the
           register.
-        </p>
-      </header>
+          </>
+        }
+        back={{ href: `/${slug}/hr/reports/labour-plan`, label: "Back to report" }}
+      />
 
       <TrackerBoard
         orgId={ctx.org.id}

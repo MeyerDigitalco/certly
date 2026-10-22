@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type {
+  ComplianceSnapshot,
   Employee,
   TrainingType,
   RegisterRow,
@@ -986,4 +987,37 @@ export async function getExpiredBySite(
     .eq("status", "expired");
   if (error) throw error;
   return (data ?? []) as Array<{ employee_id: string; site: string | null }>;
+}
+
+/** Snapshots for the trend, oldest first, at most the last 120 days. */
+export async function getComplianceSnapshots(
+  orgId: string,
+  sinceIso: string,
+): Promise<ComplianceSnapshot[]> {
+  const supabase: any = await createClient();
+  const { data, error } = await supabase
+    .from("compliance_snapshots")
+    .select("*")
+    .eq("organisation_id", orgId)
+    .gte("taken_on", sinceIso)
+    .order("taken_on", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ComplianceSnapshot[];
+}
+
+/**
+ * Record today's score. Called from the overview when an admin views it,
+ * so the history fills in through ordinary use rather than a scheduled
+ * job that needs its own secret. RLS limits this to admins of the org;
+ * a failure here is swallowed because a dashboard that cannot save its
+ * own history is still a dashboard.
+ */
+export async function recordComplianceSnapshot(
+  orgId: string,
+  snapshot: Omit<ComplianceSnapshot, "id" | "organisation_id" | "created_at">,
+): Promise<void> {
+  const supabase: any = await createClient();
+  await supabase
+    .from("compliance_snapshots")
+    .upsert({ organisation_id: orgId, ...snapshot }, { onConflict: "organisation_id,taken_on" });
 }

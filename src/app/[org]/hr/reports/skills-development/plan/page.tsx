@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
+import PageHeader from "@/components/app/PageHeader";
 import { isAdmin } from "@/lib/auth/roles";
 import { parsePeriod, setaYearFor, setaYearRange } from "@/lib/hr/operations";
 import {
@@ -47,27 +46,18 @@ export default async function SkillsPlanPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr/reports/skills-development`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to report
-        </Link>
-      </div>
-
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-            {ctx.org.name} · Skills development
-          </p>
-          <h1 className="mt-2 text-3xl md:text-4xl font-black">Workplace Skills Plan</h1>
-          <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
+      <PageHeader
+        kicker="Skills development"
+        title="Workplace Skills Plan"
+        lede={
+          <>
             How many people each site will put through each course in a SETA year. The unit
             is one row per course per site per year. Saving the same course and site again
             for the same year replaces the number rather than adding to it.
-          </p>
-        </div>
+          </>
+        }
+        back={{ href: `/${slug}/hr/reports/skills-development`, label: "Back to report" }}
+        actions={
         <form method="get" action={`/${slug}/hr/reports/skills-development/plan`} className="flex items-end gap-2">
           <label className="text-xs">
             <span className="block uppercase tracking-widest font-bold text-[var(--brand-slate)] mb-1">
@@ -92,7 +82,8 @@ export default async function SkillsPlanPage({
             Show
           </button>
         </form>
-      </header>
+        }
+      />
 
       <SkillsPlanEditor
         orgId={ctx.org.id}

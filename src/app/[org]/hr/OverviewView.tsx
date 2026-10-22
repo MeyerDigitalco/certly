@@ -11,7 +11,7 @@ import {
   Scale,
   ShieldCheck,
 } from "lucide-react";
-import type { Overview, Deadline } from "@/lib/hr/overview";
+import type { Overview, Deadline, Trend } from "@/lib/hr/overview";
 import type { SectorProfile } from "@/lib/sector";
 import { GUIDES } from "@/lib/guides";
 import PageHeader from "@/components/app/PageHeader";
@@ -34,12 +34,14 @@ const REPORT_TITLES: Record<string, string> = {
 
 export default function OverviewView({
   o,
+  trend,
   slug,
   profile,
   canWrite,
   today,
 }: {
   o: Overview;
+  trend: Trend;
   slug: string;
   profile: SectorProfile;
   canWrite: boolean;
@@ -106,14 +108,18 @@ export default function OverviewView({
                   <span className="text-2xl">%</span>
                 </p>
               </div>
-              <p className="text-xs text-[var(--brand-slate)] max-w-[14rem] text-right">
-                {!weakest
-                  ? "Nothing to score yet. Load people and certificates."
-                  : (weakest.pct ?? 0) >= 90
-                    ? "Nothing is dragging it. Keep the renewals list empty and this stays green."
-                    : `Pulling it down: ${weakest.label.toLowerCase()} at ${weakest.pct}%.`}
-              </p>
+              <div className="text-right">
+                <TrendBadge trend={trend} />
+                <p className="mt-2 text-xs text-[var(--brand-slate)] max-w-[14rem]">
+                  {!weakest
+                    ? "Nothing to score yet. Load people and certificates."
+                    : (weakest.pct ?? 0) >= 90
+                      ? "Nothing is dragging it. Keep the renewals list empty and this stays green."
+                      : `Pulling it down: ${weakest.label.toLowerCase()} at ${weakest.pct}%.`}
+                </p>
+              </div>
             </div>
+            {trend.points.length > 1 ? <Sparkline points={trend.points} /> : null}
             <ul className="mt-5 divide-y divide-[var(--brand-line)]">
               {o.score.components.map((c) => (
                 <li key={c.key} className="py-3">
@@ -352,5 +358,59 @@ function Empty({ children }: { children: React.ReactNode }) {
     <div className="bg-[var(--brand-cream)] border border-[var(--brand-line)] rounded-2xl p-5 text-sm text-[var(--brand-slate)]">
       {children}
     </div>
+  );
+}
+
+function TrendBadge({ trend }: { trend: Trend }) {
+  if (trend.delta === null) {
+    return (
+      <p className="inline-block font-mono text-[10px] uppercase tracking-widest text-[var(--brand-slate)] border border-[var(--brand-line)] rounded-sm px-2 py-1">
+        {trend.daysOfHistory === 0
+          ? "First reading today"
+          : `${trend.daysOfHistory} days of history, trend from day 30`}
+      </p>
+    );
+  }
+  const up = trend.delta > 0;
+  const flat = trend.delta === 0;
+  return (
+    <p
+      className={`inline-block font-mono text-xs font-bold rounded-sm px-2 py-1 ${
+        flat
+          ? "bg-[var(--brand-cream)] text-[var(--brand-slate)]"
+          : up
+            ? "bg-emerald-50 text-emerald-700"
+            : "bg-red-50 text-red-700"
+      }`}
+    >
+      {flat ? "No change" : `${up ? "Up" : "Down"} ${Math.abs(trend.delta)}`} since last month
+      <span className="font-normal text-[var(--brand-slate)]"> ({trend.monthAgo}%)</span>
+    </p>
+  );
+}
+
+function Sparkline({ points }: { points: Array<{ date: string; score: number }> }) {
+  const w = 320;
+  const h = 48;
+  const pad = 4;
+  const xs = points.map((_, i) => pad + (i / Math.max(1, points.length - 1)) * (w - pad * 2));
+  const ys = points.map((p) => pad + (1 - p.score / 100) * (h - pad * 2));
+  const d = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
+  const last = points[points.length - 1];
+  return (
+    <figure className="mt-4 m-0">
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} role="img" aria-label="Compliance score over time">
+        <line x1={pad} x2={w - pad} y1={pad + (1 - 0.9) * (h - pad * 2)} y2={pad + (1 - 0.9) * (h - pad * 2)} stroke="#E5E0D8" strokeDasharray="3 3" />
+        <path d={d} fill="none" stroke="#161616" strokeWidth={1.5} />
+        {xs.map((x, i) => (
+          <circle key={points[i].date} cx={x} cy={ys[i]} r={i === xs.length - 1 ? 3 : 1.5} fill={i === xs.length - 1 ? "#B91C1C" : "#161616"} />
+        ))}
+      </svg>
+      <figcaption className="flex justify-between font-mono text-[10px] text-[var(--brand-slate)] mt-1">
+        <span>{points[0].date}</span>
+        <span>dotted line is 90</span>
+        <span>{last.date}</span>
+      </figcaption>
+    </figure>
   );
 }

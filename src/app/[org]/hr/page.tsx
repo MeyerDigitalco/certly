@@ -2,9 +2,11 @@ import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import {
   getCompanyDocuments,
+  getComplianceSnapshots,
   getExpiredBySite,
   getRegisterKpis,
   getSiteSummaries,
+  recordComplianceSnapshot,
 } from "@/lib/hr/queries";
 import {
   getEmployeesForReports,
@@ -12,7 +14,7 @@ import {
   getTrainingTypesForReports,
 } from "@/lib/reports/data";
 import { todayIso } from "@/lib/certifications/status";
-import { buildOverview } from "@/lib/hr/overview";
+import { buildOverview, buildTrend } from "@/lib/hr/overview";
 import { sectorProfile } from "@/lib/sector";
 import OverviewView from "./OverviewView";
 
@@ -29,7 +31,8 @@ export default async function OverviewPage({
   const canWrite = isAdmin(ctx.role);
   const today = todayIso();
 
-  const [employees, kpis, sites, expiredBySite, companyDocs, trainingTypes, trainingPlans] =
+  const since = new Date(Date.parse(today) - 120 * 86_400_000).toISOString().slice(0, 10);
+  const [employees, kpis, sites, expiredBySite, companyDocs, trainingTypes, trainingPlans, history] =
     await Promise.all([
       getEmployeesForReports(ctx.org.id),
       getRegisterKpis(ctx.org.id),
@@ -38,6 +41,7 @@ export default async function OverviewPage({
       getCompanyDocuments(ctx.org.id),
       getTrainingTypesForReports(ctx.org.id),
       getTrainingPlans(ctx.org.id),
+      getComplianceSnapshots(ctx.org.id, since),
     ]);
 
   const o = buildOverview(
@@ -57,9 +61,26 @@ export default async function OverviewPage({
     slug,
   );
 
+  const trend = buildTrend(history, today, o.score.pct);
+  const todaySaved = history.some((h) => h.taken_on === today && h.score === o.score.pct);
+  if (canWrite && !todaySaved) {
+    const part = (key: string) => o.score.components.find((c) => c.key === key)?.pct ?? null;
+    await recordComplianceSnapshot(ctx.org.id, {
+      taken_on: today,
+      score: o.score.pct,
+      certificates_pct: part("certificates"),
+      declarations_pct: part("declarations"),
+      company_docs_pct: part("company_documents"),
+      training_pct: part("training_details"),
+      headcount: o.headcount,
+      cannot_pass: o.gate.cannotPass,
+    });
+  }
+
   return (
     <OverviewView
       o={o}
+      trend={trend}
       slug={slug}
       profile={sectorProfile(ctx.org.sector)}
       canWrite={canWrite}

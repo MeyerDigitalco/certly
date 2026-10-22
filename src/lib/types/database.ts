@@ -157,6 +157,20 @@ export interface Absence {
   updated_at: string;
 }
 
+export interface ComplianceSnapshot {
+  id: UUID;
+  organisation_id: UUID;
+  taken_on: string;
+  score: number;
+  certificates_pct: number | null;
+  declarations_pct: number | null;
+  company_docs_pct: number | null;
+  training_pct: number | null;
+  headcount: number;
+  cannot_pass: number;
+  created_at: string;
+}
+
 export interface LabourPlan {
   id: UUID;
   organisation_id: UUID;

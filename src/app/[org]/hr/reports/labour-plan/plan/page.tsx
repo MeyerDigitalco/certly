@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
+import PageHeader from "@/components/app/PageHeader";
 import { isAdmin } from "@/lib/auth/roles";
 import { getEmployeesForReports, getLabourPlans } from "@/lib/reports/data";
 import PlanEditor from "./PlanEditor";
@@ -40,28 +39,20 @@ export default async function LabourPlanEditorPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/${slug}/hr/reports/labour-plan`}
-          className="text-[var(--brand-red)] text-xs font-bold inline-flex items-center gap-1"
-        >
-          <ArrowLeft size={12} /> Back to report
-        </Link>
-      </div>
-
-      <header>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--brand-red)] font-bold">
-          {ctx.org.name} · Labour plan
-        </p>
-        <h1 className="mt-2 text-3xl md:text-4xl font-black">Approved positions</h1>
-        <p className="mt-2 text-[var(--brand-slate)] max-w-2xl">
+      <PageHeader
+        kicker="Labour plan"
+        title="Approved positions"
+        lede={
+          <>
           The number of people each site should carry per designation. The monthly
           Labour plan and Staff movement reports measure the register against these
           numbers. A new row with a later effective date supersedes the old one from
           that date, so history is kept and an earlier month still reports against the
           plan that applied then.
-        </p>
-      </header>
+          </>
+        }
+        back={{ href: `/${slug}/hr/reports/labour-plan`, label: "Back to report" }}
+      />
 
       <PlanEditor
         orgId={ctx.org.id}
