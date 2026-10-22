@@ -24,6 +24,7 @@ export default function SignupForm() {
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [sector, setSector] = useState<Sector | "">("");
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   const effectiveSlug = slugEdited ? slug : slugify(company);
 
@@ -40,7 +41,25 @@ export default function SignupForm() {
     startTransition(async () => {
       const res = await signUp(form);
       if (res && !res.ok) setError({ message: res.error, field: res.field });
+      if (res && res.ok) setSentTo(res.checkEmail);
     });
+  }
+
+  if (sentTo) {
+    return (
+      <div className="space-y-3">
+        <h2 className="text-xl font-black">Check your email</h2>
+        <p className="text-sm text-[var(--brand-slate)]">
+          We sent a confirmation link to <b className="text-[var(--brand-ink)]">{sentTo}</b>.
+          Open it and your workspace is created the moment you land back here.
+        </p>
+        <p className="text-xs text-[var(--brand-slate)]">
+          Nothing in the inbox after a few minutes? Check spam, and make sure the
+          address is one you can actually open. The link expires, so do not leave it
+          for tomorrow.
+        </p>
+      </div>
+    );
   }
 
   return (

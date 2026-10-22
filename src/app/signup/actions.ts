@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { publicOrigin } from "@/lib/origin";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export type SignUpResult = { ok: false; error: string; field?: string };
+export type SignUpResult =
+  | { ok: false; error: string; field?: string }
+  | { ok: true; checkEmail: string };
 
 const SignupSchema = z.object({
   company: z.string().trim().min(2, "Company name is required"),
@@ -25,10 +28,16 @@ const SignupSchema = z.object({
 });
 
 /**
- * Create a new workspace: an auth user (who sets their own password, so
- * has_password is true from the start) plus an organisation and owner
- * membership via the provision_organisation RPC. On success it signs the
- * user in and redirects into their workspace.
+ * Create a new workspace.
+ *
+ * A new address goes through Supabase's own sign-up, which sends a
+ * confirmation email when "Confirm email" is on in the project's auth
+ * settings. The workspace is not created until the address is confirmed:
+ * what was asked for is kept in the user's metadata as pending_workspace,
+ * and the /workspace page provisions it on the first confirmed visit. That
+ * way nobody can squat a slug or hold a workspace with an address they do
+ * not own. If confirmation is switched off, sign-up returns a session at
+ * once and the workspace is provisioned here immediately.
  *
  * This endpoint is unauthenticated, so it must never touch the credentials
  * of an account that already exists. If the address is already registered,
@@ -76,8 +85,6 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
     data: { user: sessionUser },
   } = await supabase.auth.getUser();
 
-  let userId: string;
-  let createdNewUser = false;
   if (existingUser) {
     if (!sessionUser || sessionUser.id !== existingUser.id) {
       return {
@@ -87,36 +94,48 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
         field: "email",
       };
     }
-    userId = existingUser.id;
-  } else {
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    const { error: provErr } = await admin.rpc("provision_organisation", {
+      p_slug: slug,
+      p_name: company,
+      p_user_id: existingUser.id,
+      p_sector: sector,
+    });
+    if (provErr) return { ok: false, error: provErr.message };
+    redirect(`/${slug}/hr`);
+  }
+
+  const origin = await publicOrigin();
+  const { data: signedUp, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback?next=/workspace`,
+      data: {
+        has_password: true,
+        pending_workspace: { company, slug, sector },
+      },
+    },
+  });
+  if (signUpError || !signedUp?.user) {
+    return { ok: false, error: signUpError?.message ?? "Could not create account." };
+  }
+
+  if (signedUp.session) {
+    const { error: provErr } = await admin.rpc("provision_organisation", {
+      p_slug: slug,
+      p_name: company,
+      p_user_id: signedUp.user.id,
+      p_sector: sector,
+    });
+    if (provErr) {
+      await admin.auth.admin.deleteUser(signedUp.user.id);
+      return { ok: false, error: provErr.message };
+    }
+    await admin.auth.admin.updateUserById(signedUp.user.id, {
       user_metadata: { has_password: true },
     });
-    if (error || !created?.user) {
-      return { ok: false, error: error?.message ?? "Could not create account." };
-    }
-    userId = created.user.id;
-    createdNewUser = true;
+    redirect(`/${slug}/hr`);
   }
 
-  const { error: provErr } = await admin.rpc("provision_organisation", {
-    p_slug: slug,
-    p_name: company,
-    p_user_id: userId,
-    p_sector: sector,
-  });
-  if (provErr) {
-    // Roll back a freshly-created user so a failed signup can be retried.
-    if (createdNewUser) await admin.auth.admin.deleteUser(userId);
-    return { ok: false, error: provErr.message };
-  }
-
-  if (createdNewUser) {
-    await supabase.auth.signInWithPassword({ email, password });
-  }
-
-  redirect(`/${slug}/hr`);
+  return { ok: true, checkEmail: email };
 }
