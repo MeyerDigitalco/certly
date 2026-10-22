@@ -14,6 +14,21 @@ export const dynamic = "force-dynamic";
  */
 const DEFAULT_NEXT = "/set-password?change=1";
 
+/**
+ * The only verification types Certly's own emails ask for. The value
+ * arrives in a query string, so it is attacker controlled; passing it
+ * straight to verifyOtp would let someone pick a flow we never intended
+ * to expose.
+ */
+const ALLOWED_TYPES = new Set([
+  "signup",
+  "recovery",
+  "magiclink",
+  "invite",
+  "email",
+  "email_change",
+]);
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const code = url.searchParams.get("code");
@@ -28,7 +43,7 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(new URL(next, url.origin));
     }
-  } else if (tokenHash && type) {
+  } else if (tokenHash && type && ALLOWED_TYPES.has(type)) {
     const { error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
