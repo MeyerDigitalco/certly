@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import PasswordInput from "@/components/PasswordInput";
 import { Pickaxe, Building2, Check } from "lucide-react";
 import { signUp } from "./actions";
 import { SECTORS } from "@/lib/sector";
@@ -185,16 +186,12 @@ export default function SignupForm() {
         <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
           Password
         </label>
-        <input
-          type="password"
+        <PasswordInput
           name="password"
-          required
           autoComplete="new-password"
-          className={`mt-1 w-full border rounded-md p-3 focus:outline-none focus:border-[var(--brand-red)] ${
-            error?.field === "password"
-              ? "border-red-400"
-              : "border-[var(--brand-line)]"
-          }`}
+          required
+          minLength={8}
+          invalid={error?.field === "password"}
         />
         <p className="mt-1 text-xs text-[var(--brand-slate)]">
           At least 8 characters. You are the workspace owner.

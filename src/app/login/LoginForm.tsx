@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import PasswordInput from "@/components/PasswordInput";
 import { signIn } from "./actions";
 
 export default function LoginForm({ next }: { next?: string }) {
@@ -41,13 +42,7 @@ export default function LoginForm({ next }: { next?: string }) {
         <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
           Password
         </label>
-        <input
-          type="password"
-          name="password"
-          required
-          autoComplete="current-password"
-          className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 focus:outline-none focus:border-[var(--brand-red)]"
-        />
+        <PasswordInput name="password" autoComplete="current-password" required />
       </div>
       <button
         type="submit"

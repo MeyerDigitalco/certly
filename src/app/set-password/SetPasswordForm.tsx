@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import PasswordInput from "@/components/PasswordInput";
 import { setPassword } from "./actions";
 
 export default function SetPasswordForm({ next }: { next?: string }) {
@@ -29,25 +30,13 @@ export default function SetPasswordForm({ next }: { next?: string }) {
         <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
           New password
         </label>
-        <input
-          type="password"
-          name="password"
-          required
-          autoComplete="new-password"
-          className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 focus:outline-none focus:border-[var(--brand-red)]"
-        />
+        <PasswordInput name="password" autoComplete="new-password" required minLength={8} />
       </div>
       <div>
         <label className="text-xs uppercase tracking-widest font-bold text-[var(--brand-slate)]">
           Confirm password
         </label>
-        <input
-          type="password"
-          name="confirm"
-          required
-          autoComplete="new-password"
-          className="mt-1 w-full border border-[var(--brand-line)] rounded-md p-3 focus:outline-none focus:border-[var(--brand-red)]"
-        />
+        <PasswordInput name="confirm" autoComplete="new-password" required minLength={8} />
       </div>
       <button
         type="submit"
