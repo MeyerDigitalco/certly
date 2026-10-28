@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useSyncedDraft } from "@/components/useSyncedDraft";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Check } from "lucide-react";
 import type { TrainingType } from "@/lib/types/database";
@@ -222,8 +223,7 @@ function SelectCell({
   pending: boolean;
   onSave: (value: string) => Promise<boolean>;
 }) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  const [draft, setDraft] = useSyncedDraft(value);
 
   return (
     <select
@@ -272,8 +272,7 @@ function InputCell({
   pending: boolean;
   onSave: (value: string) => Promise<boolean>;
 }) {
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  const [draft, setDraft] = useSyncedDraft(value);
 
   async function commit(next: string) {
     if (next.trim() === value.trim()) return;
@@ -313,8 +312,7 @@ function CheckCell({
   pending: boolean;
   onSave: (value: string) => Promise<boolean>;
 }) {
-  const [draft, setDraft] = useState(checked);
-  useEffect(() => setDraft(checked), [checked]);
+  const [draft, setDraft] = useSyncedDraft(checked);
 
   return (
     <input

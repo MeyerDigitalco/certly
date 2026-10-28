@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useSyncedDraft } from "@/components/useSyncedDraft";
 import { Check, AlertCircle } from "lucide-react";
 import { updateEmployeeLifecycle } from "@/lib/hr/mutations";
 
@@ -63,13 +64,10 @@ export default function InlineField({
 }: InlineFieldProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const [draft, setDraft] = useSyncedDraft(value == null ? "" : String(value));
   const [state, setState] = useState<"idle" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDraft(value == null ? "" : String(value));
-  }, [value]);
 
   useEffect(() => {
     if (state !== "saved") return;

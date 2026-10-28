@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { SITE } from "@/lib/site";
 import { guideBySlug } from "@/lib/guides";
@@ -109,7 +110,7 @@ export default function Page() {
         </p>
         <p>
           Below 50 employees you do not prepare an EE Plan and you do not submit
-          annual reports. That is the whole of the exemption. The Act's
+          annual reports. That is the whole of the exemption. The Act&apos;s
           anti-discrimination provisions and its equal pay for work of equal
           value provisions apply to every employer in the country, so a
           nine-person firm can still be taken to the CCMA for unfair
@@ -118,7 +119,7 @@ export default function Page() {
         </p>
         <p>
           If your headcount sits near 50 and moves with the contract book, have
-          the count checked against the Act's definition of an employee rather
+          the count checked against the Act&apos;s definition of an employee rather
           than against whatever your payroll report shows on the day. Fixed-term
           crew, seasonal labour and people placed through a third party are
           where the argument happens, so ask your advisor before you decide you
@@ -205,9 +206,9 @@ export default function Page() {
           The reporting year for workforce movements, meaning recruits,
           promotions and terminations, runs from 1 September to 31 August. That
           is not your financial year and it is not your SETA year either. The{" "}
-          <a href="/guides/workplace-skills-plan">
+          <Link href="/guides/workplace-skills-plan">
             Workplace Skills Plan and Annual Training Report
-          </a>{" "}
+          </Link>{" "}
           cover a different period with their own 30 April deadline, so you
           cannot fill in one report from the extract you pulled for the other.
           Employers who try end up with movement figures that do not reconcile
@@ -248,13 +249,13 @@ export default function Page() {
         </p>
         <p>
           Occupational level is where contractors struggle most, because trade
-          titles do not map cleanly onto the Act's six levels and nobody in the
+          titles do not map cleanly onto the Act&apos;s six levels and nobody in the
           business has ever had to make the call. Make it once, write it down
           against each role rather than each person, and keep it stable between
           years, otherwise your progress figures will move for reasons that have
           nothing to do with hiring. Download the current EEA2 from
-          labour.gov.za each cycle rather than reusing last year's spreadsheet,
-          because the form's layout and the detail it asks for do change between
+          labour.gov.za each cycle rather than reusing last year&apos;s spreadsheet,
+          because the form&apos;s layout and the detail it asks for do change between
           versions.
         </p>
       </section>

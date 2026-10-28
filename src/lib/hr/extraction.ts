@@ -1,7 +1,10 @@
 "use server";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { createClient } from "@/lib/supabase/server";
-import type { Employee, IdType, TrainingType } from "@/lib/types/database";
+import { assertWritable } from "@/lib/billing/access";
+import type { IdType, TrainingType } from "@/lib/types/database";
 import { validateSaId } from "@/lib/validation/sa-id";
 import { isIdType } from "@/lib/validation/identification";
 import {
@@ -10,11 +13,14 @@ import {
   type DocumentKind,
 } from "@/lib/hr/document-kinds";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const MAX_BYTES = 15 * 1024 * 1024;
+
+const EXTRACTION_BUCKET = "certificate_extraction";
+const EXTRACTION_PER_HOUR = 120;
 
 const READABLE_TYPES: Record<string, string> = {
   pdf: "application/pdf",
@@ -216,6 +222,23 @@ async function assertMember(orgId: string): Promise<string | null> {
   if (!mem || !["owner", "admin"].includes(mem.role)) {
     return "You do not have permission to add certifications in this workspace.";
   }
+
+  const blocked = await assertWritable(orgId);
+  if (blocked) return blocked;
+
+  const { data: allowed, error } = await supabase.rpc("consume_rate_limit", {
+    p_org: orgId,
+    p_bucket: EXTRACTION_BUCKET,
+    p_limit: EXTRACTION_PER_HOUR,
+    p_window_seconds: 3600,
+  });
+
+  // A counter that cannot be read is not a reason to hand out a paid call.
+  if (error) return "Could not check the reading limit. Try again shortly.";
+  if (allowed === false) {
+    return `This workspace has read ${EXTRACTION_PER_HOUR} certificates in the last hour, which is the limit. Add the rest by hand, or try again later.`;
+  }
+
   return null;
 }
 

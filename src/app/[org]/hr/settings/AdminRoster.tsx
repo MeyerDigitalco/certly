@@ -1,4 +1,6 @@
 "use client";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Trash2, KeyRound, Copy, Check, ShieldCheck, Clock, X } from "lucide-react";

@@ -32,6 +32,7 @@ const TENANT_TABLES = [
   "absences",
   "training_plans",
   "compliance_snapshots",
+  "rate_limits",
 ];
 
 const KEYED_BY_OWN_ID = ["organisations"];
@@ -240,8 +241,31 @@ describe("tenant isolation", () => {
       expect(reason).toContain("CRON_SECRET");
       const file = FILES.find((f) => f.path === path);
       expect(file, `${path} no longer exists`).toBeDefined();
-      expect(file!.source).toContain("process.env.CRON_SECRET");
-      expect(file!.source).toContain("timingSafeEqual");
+
+      // The check itself lives in one shared module rather than being copied
+      // into each route, so this follows the import instead of looking for
+      // the secret inline. Both halves are asserted: the route must refuse
+      // before doing anything, and the helper must be the real check.
+      expect(
+        file!.source,
+        `${path} must gate on authorisedCron before reading every workspace`,
+      ).toContain("authorisedCron(request)");
+      expect(file!.source).toContain('from "@/lib/cron-auth"');
+    }
+
+    const helper = FILES.find((f) => f.path === "lib/cron-auth.ts");
+    expect(helper, "lib/cron-auth.ts no longer exists").toBeDefined();
+    expect(helper!.source).toContain("process.env.CRON_SECRET");
+    expect(helper!.source).toContain("timingSafeEqual");
+
+    // The secret must not be readable from the URL. It would be written to
+    // the platform access log, and these routes read every workspace.
+    for (const f of FILES) {
+      if (!f.path.includes("api/cron/") && f.path !== "lib/cron-auth.ts") continue;
+      expect(
+        /searchParams\.get\(\s*["']key["']\s*\)/.test(f.source),
+        `${f.path} accepts the cron secret in the query string`,
+      ).toBe(false);
     }
   });
 });
@@ -293,5 +317,62 @@ describe('"use server" modules', () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+const CREATE_TABLE =
+  /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/i;
+const ADD_ORG_COLUMN =
+  /alter\s+table\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s+add\s+column\s+(?:if\s+not\s+exists\s+)?organisation_id/i;
+
+const VIEWS = ["register_rows"];
+
+describe("the tenant table list itself", () => {
+  /**
+   * TENANT_TABLES is hand written, and every audit in this file is scoped by
+   * it, so a table added to the schema and forgotten here is not merely
+   * unlisted, it is silently exempt from every isolation check. Reading the
+   * migrations back makes that impossible to do quietly.
+   */
+  function tablesWithOrgColumn(): string[] {
+    const dir = resolve(SRC, "..", "supabase", "migrations");
+    const found = new Set<string>();
+    const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+
+    for (const name of files) {
+      const sql = readFileSync(resolve(dir, name), "utf8");
+      for (const statement of sql.split(";")) {
+        if (!statement.includes("organisation_id")) continue;
+
+        const created = CREATE_TABLE.exec(statement);
+        if (created) {
+          found.add(created[1]);
+          continue;
+        }
+        const altered = ADD_ORG_COLUMN.exec(statement);
+        if (altered) found.add(altered[1]);
+      }
+    }
+    return [...found].sort();
+  }
+
+  it("finds the organisation_id tables in the migrations at all", () => {
+    const tables = tablesWithOrgColumn();
+    expect(tables.length).toBeGreaterThan(8);
+    expect(tables).toContain("employees");
+    expect(tables).toContain("certifications");
+  });
+
+  it("lists every table that has an organisation_id column", () => {
+    const missing = tablesWithOrgColumn().filter(
+      (t) => !TENANT_TABLES.includes(t) && !KEYED_BY_OWN_ID.includes(t),
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it("does not list a table that no longer exists in the schema", () => {
+    const known = new Set([...tablesWithOrgColumn(), ...VIEWS]);
+    const stale = TENANT_TABLES.filter((t) => !known.has(t));
+    expect(stale).toEqual([]);
   });
 });

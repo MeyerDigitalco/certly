@@ -1,4 +1,5 @@
 import { requireTenant } from "@/lib/tenant";
+import { isAdmin } from "@/lib/auth/roles";
 import { parsePeriod, periodKey } from "@/lib/hr/operations";
 import { getEmployeesForReports } from "@/lib/reports/data";
 import { buildWorkbook, xlsxResponse, type SheetColumn, type SheetSpec } from "@/lib/reports/excel";
@@ -52,6 +53,12 @@ export async function GET(
 ) {
   const { org: slug } = await params;
   const ctx = await requireTenant(slug);
+
+  // Admin only, same as the register export and the evidence pack. The
+  // workbook names individuals alongside their EEA1 declaration.
+  if (!isAdmin(ctx.role)) {
+    return new Response("Not found", { status: 404 });
+  }
   const url = new URL(req.url);
   const period = parsePeriod(url.searchParams.get("period"));
   const site = (url.searchParams.get("site") ?? "").trim();

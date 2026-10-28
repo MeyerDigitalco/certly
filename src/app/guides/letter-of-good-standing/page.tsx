@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { SITE } from "@/lib/site";
 import { guideBySlug } from "@/lib/guides";
@@ -123,7 +124,7 @@ export default function Page() {
         </p>
         <p>
           It is also one of the documents a client expects to find in your{" "}
-          <a href="/guides/contractor-safety-file">contractor safety file</a>,
+          <Link href="/guides/contractor-safety-file">contractor safety file</Link>,
           filed next to your proof of registration. That matters later, because
           a safety file is assembled once and reused, which is a good way for
           an expired letter to sit in a folder looking official.

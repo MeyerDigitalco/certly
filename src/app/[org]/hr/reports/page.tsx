@@ -9,6 +9,7 @@ import {
   Scale,
   Users,
 } from "lucide-react";
+import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import { parsePeriod, periodKey } from "@/lib/hr/operations";
@@ -86,6 +87,11 @@ export default async function ReportsIndexPage({
   const { org: slug } = await params;
   const sp = await searchParams;
   const ctx = await requireTenant(slug);
+
+  // Admin only, like the reports themselves. A viewer who reached this index
+  // would only find seven links that answer 404.
+  if (!isAdmin(ctx.role)) notFound();
+
   const period = parsePeriod(sp.period);
   const canWrite = isAdmin(ctx.role);
 

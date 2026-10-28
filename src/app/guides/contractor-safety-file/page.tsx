@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { SITE } from "@/lib/site";
 import { guideBySlug } from "@/lib/guides";
@@ -147,7 +148,7 @@ export default function Page() {
           <li>Incident reporting and investigation procedures</li>
           <li>
             COIDA documents, including the{" "}
-            <a href="/guides/letter-of-good-standing">letter of good standing</a>
+            <Link href="/guides/letter-of-good-standing">letter of good standing</Link>
           </li>
           <li>
             Employee details: identity documents, driver&rsquo;s licences,

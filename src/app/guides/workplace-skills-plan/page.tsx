@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { SITE } from "@/lib/site";
 import { guideBySlug } from "@/lib/guides";
@@ -230,7 +231,7 @@ export default function Page() {
           The second is the demographic detail, which is the same data the EEA2
           needs and is normally collected on the EEA1 form, so a designated
           employer already has it. If you are one, see our guide to the{" "}
-          <a href="/guides/employment-equity-report">employment equity report</a>{" "}
+          <Link href="/guides/employment-equity-report">employment equity report</Link>{" "}
           for how that data is gathered. Do not simply lift totals across,
           though: the employment equity reporting year and the SETA financial
           year cover different periods, so the same person&rsquo;s training can

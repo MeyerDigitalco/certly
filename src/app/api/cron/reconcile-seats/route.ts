@@ -1,11 +1,12 @@
-import { timingSafeEqual } from "node:crypto";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { quoteFor } from "@/lib/billing/plan";
 import { payfastConfig } from "@/lib/billing/payfast";
 import { updateSubscriptionAmount } from "@/lib/billing/payfast-api";
+import { authorisedCron } from "@/lib/cron-auth";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -27,21 +28,9 @@ export const maxDuration = 300;
  * people who have left would be worse than the undercharge this fixes.
  */
 
-function authorised(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header =
-    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    request.nextUrl.searchParams.get("key") ??
-    "";
-  const a = Buffer.from(header);
-  const b = Buffer.from(secret);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
 
 export async function GET(request: NextRequest) {
-  if (!authorised(request)) {
+  if (!authorisedCron(request)) {
     return new Response("Not found", { status: 404 });
   }
 

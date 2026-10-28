@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useSyncedDraft } from "@/components/useSyncedDraft";
 import { Check, AlertCircle } from "lucide-react";
 import { upsertLabourPlan } from "@/lib/hr/mutations";
 
@@ -27,13 +28,10 @@ export default function InlinePlanned({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [draft, setDraft] = useState(String(planned));
+  const [draft, setDraft] = useSyncedDraft(String(planned));
   const [state, setState] = useState<"idle" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDraft(String(planned));
-  }, [planned]);
 
   useEffect(() => {
     if (state !== "saved") return;

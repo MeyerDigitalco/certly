@@ -47,8 +47,35 @@ const CREAM = "FFF5F1EA";
 const LINE = "FFD9D2C7";
 const WHITE = "FFFFFFFF";
 
-function safeSheetName(name: string): string {
-  return name.replace(/[\\/?*[\]:]/g, " ").slice(0, 31) || "Sheet";
+/**
+ * Excel caps a sheet name at 31 characters, forbids a handful of punctuation
+ * marks, and compares names without regard to case. Truncating alone is not
+ * enough: two names that differ only past the cap become the same name, and
+ * ExcelJS throws rather than renaming, which loses the whole workbook instead
+ * of one sheet title. Collisions are resolved here with a numeric suffix that
+ * is itself kept inside the cap.
+ */
+function safeSheetName(name: string, taken: Set<string>): string {
+  const base =
+    name.replace(/[\\/?*[\]:]/g, " ").trim().slice(0, 31).trim() || "Sheet";
+
+  if (!taken.has(base.toLowerCase())) {
+    taken.add(base.toLowerCase());
+    return base;
+  }
+
+  for (let n = 2; n < 1000; n += 1) {
+    const suffix = ` ${n}`;
+    const candidate = `${base.slice(0, 31 - suffix.length).trim()}${suffix}`;
+    if (!taken.has(candidate.toLowerCase())) {
+      taken.add(candidate.toLowerCase());
+      return candidate;
+    }
+  }
+
+  const fallback = `Sheet ${taken.size + 1}`.slice(0, 31);
+  taken.add(fallback.toLowerCase());
+  return fallback;
 }
 
 export async function buildWorkbook(spec: WorkbookSpec): Promise<Buffer> {
@@ -56,8 +83,10 @@ export async function buildWorkbook(spec: WorkbookSpec): Promise<Buffer> {
   wb.creator = "Certly";
   wb.created = new Date();
 
+  const takenSheetNames = new Set<string>();
+
   for (const sheet of spec.sheets) {
-    const ws = wb.addWorksheet(safeSheetName(sheet.name), {
+    const ws = wb.addWorksheet(safeSheetName(sheet.name, takenSheetNames), {
       views: [{ state: "frozen", ySplit: 4 }],
       pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1 },
     });

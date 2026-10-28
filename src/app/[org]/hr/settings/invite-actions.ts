@@ -1,10 +1,13 @@
 "use server";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { publicOrigin } from "@/lib/origin";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertWritable } from "@/lib/billing/access";
 import {
   newInviteToken,
   hashInviteToken,
@@ -12,7 +15,7 @@ import {
   normaliseInviteEmail,
 } from "@/lib/invitations";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export type InviteResult =
   | { ok: true; email: string; link: string }
@@ -62,6 +65,13 @@ export async function inviteMember(
 
   const guard = await assertOwner(orgId);
   if ("error" in guard) return { ok: false, error: guard.error };
+
+  // Inviting grows the workspace, so it is gated on billing. Revoking is not:
+  // an owner behind on an invoice must still be able to take access away.
+  // These writes go through the service role, which bypasses RLS and the
+  // billing trigger, so the gate has to be here or it is nowhere.
+  const blocked = await assertWritable(orgId);
+  if (blocked) return { ok: false, error: blocked };
 
   if (!z.string().email().max(254).safeParse(email).success) {
     return { ok: false, error: "Enter a valid email address." };

@@ -210,6 +210,9 @@ export default function OverviewView({
       </section>
 
       <section className="grid md:grid-cols-2 gap-6">
+        {/* The statutory reports are admin only, so a viewer is not shown
+            links that would answer with a 404. */}
+        {canWrite ? (
         <div>
           <SectionLabel icon={ClipboardList}>Reports for a {profile.short.toLowerCase()} contractor</SectionLabel>
           <ul className="bg-white border border-[var(--brand-line)] rounded-2xl divide-y divide-[var(--brand-line)]">
@@ -235,6 +238,7 @@ export default function OverviewView({
             </li>
           </ul>
         </div>
+        ) : null}
         <div>
           <SectionLabel icon={FileBadge}>Guides</SectionLabel>
           <ul className="bg-white border border-[var(--brand-line)] rounded-2xl divide-y divide-[var(--brand-line)]">

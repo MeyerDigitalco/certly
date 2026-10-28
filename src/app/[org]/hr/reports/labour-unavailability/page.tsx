@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { requireTenant } from "@/lib/tenant";
 import { isAdmin } from "@/lib/auth/roles";
 import { parsePeriod, periodKey } from "@/lib/hr/operations";
@@ -34,6 +35,12 @@ export default async function LabourUnavailabilityPage({
   const { org: slug } = await params;
   const sp = await searchParams;
   const ctx = await requireTenant(slug);
+
+  // Statutory reports carry each person's own EEA1 declaration: population
+  // group, gender and disability. That is special personal information under
+  // POPIA section 26, so these are admin only, matching the register export,
+  // the evidence pack and the safety file.
+  if (!isAdmin(ctx.role)) notFound();
   const period = parsePeriod(sp.period);
   const site = (sp.site ?? "").trim();
 

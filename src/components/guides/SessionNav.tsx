@@ -1,26 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 
 /**
  * The right-hand end of the guide masthead. Guides are static pages, so
  * the server cannot know who is reading. The browser can: a Supabase
  * session leaves a cookie prefixed "sb-", so a signed-in reader gets
- * "Your workspace" and a stranger gets "Sign in" and "Start free". Until
- * the effect runs, and whenever the cookie cannot be read, the stranger's
- * version renders, which is also what every crawler sees.
+ * "Your workspace" and a stranger gets "Sign in" and "Start free".
+ *
+ * Read through useSyncExternalStore rather than an effect, so the server
+ * snapshot and the first client render agree and there is no flash of the
+ * wrong nav. The cookie does not announce changes, so the subscription is
+ * empty: the value is read once per mount, which is all this needs. A
+ * crawler, and any browser where the cookie cannot be read, gets the
+ * stranger's version.
  */
-export default function SessionNav() {
-  const [signedIn, setSignedIn] = useState(false);
+const AUTH_COOKIE = /(^|;\s*)sb-[^=]+-auth-token(\.\d+)?=/;
 
-  useEffect(() => {
-    try {
-      setSignedIn(/(^|;\s*)sb-[^=]+-auth-token(\.\d+)?=/.test(document.cookie));
-    } catch {
-      setSignedIn(false);
-    }
-  }, []);
+function subscribe(): () => void {
+  return () => {};
+}
+
+function hasSession(): boolean {
+  try {
+    return AUTH_COOKIE.test(document.cookie);
+  } catch {
+    return false;
+  }
+}
+
+export default function SessionNav() {
+  const signedIn = useSyncExternalStore(subscribe, hasSession, () => false);
 
   if (signedIn) {
     return (

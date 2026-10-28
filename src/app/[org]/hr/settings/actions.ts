@@ -1,9 +1,12 @@
 "use server";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertWritable } from "@/lib/billing/access";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 type Result =
   | { ok: true; email: string; password: string }
@@ -113,6 +116,14 @@ export async function changeMemberRole(formData: FormData): Promise<SimpleResult
   if (!["owner","admin","viewer"].includes(role)) return { ok: false, error: "Invalid role." };
   const err = await assertOwner(orgId);
   if (err) return { ok: false, error: err };
+
+  // Promotion grows what the workspace can do, so it is gated on billing.
+  // Demotion is not, because taking rights away should never be blocked by an
+  // unpaid invoice. Removal and password reset stay open for the same reason.
+  if (role === "owner" || role === "admin") {
+    const blocked = await assertWritable(orgId);
+    if (blocked) return { ok: false, error: blocked };
+  }
 
   const admin: any = createAdminClient();
   // If demoting an owner, make sure another owner exists.
