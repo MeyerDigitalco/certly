@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useGuardedTransition } from "@/components/useGuardedTransition";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -34,7 +35,7 @@ export default function CompanyDocsClient({
   documents: CompanyDocument[];
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [pending, startTransition] = useGuardedTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyDocument | null>(null);

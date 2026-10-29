@@ -1,5 +1,7 @@
 "use server";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +34,7 @@ import {
 // with @supabase/postgrest-js overloads, so every function casts the client
 // to `any`. Zod validation keeps the payloads strict at the boundary.
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export type ActionResult =
   | { ok: true }
@@ -2100,6 +2102,14 @@ export async function createOnboardingCandidate(
     ...onboardingPayload(parsed.data),
     created_by: guard.userId,
   });
+  // 23505 = unique_violation on (organisation_id, id_number).
+  if (error?.code === "23505") {
+    return {
+      ok: false,
+      error: "A candidate with that identification number is already being tracked.",
+      field: "id_number",
+    };
+  }
   if (error) return { ok: false, error: error.message ?? "Could not add the candidate." };
 
   revalidatePath(`/${slug}/hr/reports/labour-plan`);
@@ -2341,13 +2351,24 @@ export async function createAbsence(
   }
 
   const payload = absencePayload(parsed.data);
-  const { error } = await supabase.from("absences").insert(
+
+  // Ignore a spell this workspace already has, rather than failing. A second
+  // submission of the same form, from a double click or a refreshed page,
+  // should leave the register as the person intended rather than duplicate
+  // every row or refuse the lot. It also means selecting ten people, two of
+  // whom are already recorded, records the other eight instead of rejecting
+  // the whole batch.
+  const { error } = await supabase.from("absences").upsert(
     ids.map((employee_id) => ({
       organisation_id: orgId,
       employee_id,
       ...payload,
       created_by: guard.userId,
     })),
+    {
+      onConflict: "organisation_id,employee_id,starts_on,ends_on,reason",
+      ignoreDuplicates: true,
+    },
   );
   if (error) return { ok: false, error: error.message ?? "Could not record the absence." };
 

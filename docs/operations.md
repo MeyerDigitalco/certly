@@ -97,6 +97,7 @@ applied automatically; run them in the Supabase SQL editor.
 | `0012` | Sector profile, mining versus general |
 | `0013` | Compliance snapshots for the score trend |
 | `0014` | Rate limits for paid endpoints |
+| `0015` | Duplicate guards on absences and onboarding candidates |
 
 Three storage buckets, all private, all with per-organisation path prefixes:
 `certificates`, `identity-documents`, `company-documents`. The policies key on
