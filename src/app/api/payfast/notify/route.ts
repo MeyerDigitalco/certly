@@ -3,9 +3,9 @@ import { promises as dns } from "node:dns";
 import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  matchNotificationSignature,
   payfastConfig,
   validateUrl,
-  verifyNotificationSignature,
   PAYFAST_HOSTS,
   type PayFastField,
 } from "@/lib/billing/payfast";
@@ -143,7 +143,13 @@ export async function POST(request: NextRequest) {
     fields.find(([k]) => k === key)?.[1] ?? "";
 
   const signature = get("signature");
-  if (!verifyNotificationSignature(fields, signature, config.passphrase)) {
+  const match = matchNotificationSignature(
+    fields,
+    signature,
+    config.passphrase,
+    raw,
+  );
+  if (!match) {
     // Almost always PAYFAST_PASSPHRASE here not matching the one set on the
     // PayFast account, rather than anything hostile.
     return refused("signature mismatch", {
@@ -152,6 +158,8 @@ export async function POST(request: NextRequest) {
       fields: String(fields.length),
     });
   }
+
+  console.info(`payfast.notify signature ok via ${match}`);
 
   if (!(await confirmWithPayFast(raw, config.sandbox))) {
     // PayFast did not answer VALID to the server to server check, or we could

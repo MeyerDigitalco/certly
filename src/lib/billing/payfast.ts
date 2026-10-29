@@ -61,15 +61,25 @@ export function phpUrlEncode(value: string): string {
 }
 
 /**
- * Build the signature string from ordered fields, then hash it. Empty values
- * are dropped, matching PayFast's own implementation.
+ * Build the signature string from ordered fields, then hash it.
+ *
+ * Empty values are dropped by default, which is what PayFast's own code does
+ * when it generates a payment form. It is not what PayFast does when it signs
+ * a notification: there every field it sends is included, empty ones too, and
+ * a notification carries all ten custom fields whether they were used or not.
+ * Dropping them is a hash that can never match, so keepEmpty exists for that
+ * side of the conversation.
  */
 export function signatureStringFor(
   fields: PayFastField[],
   passphrase?: string,
+  options: { keepEmpty?: boolean } = {},
 ): string {
   const parts = fields
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .filter(([, value]) => {
+      if (value === undefined || value === null) return false;
+      return options.keepEmpty ? true : value !== "";
+    })
     .map(([key, value]) => `${key}=${phpUrlEncode(String(value).trim())}`);
 
   if (passphrase) {
@@ -292,14 +302,66 @@ export function signatureProbe(
  * PayFast sent them, which is why this takes ordered pairs rather than an
  * object: object key order is not something to bet a payment on.
  */
+export type NotificationMatch = "kept_empty" | "dropped_empty" | "raw" | null;
+
+/**
+ * Work out which of PayFast's encodings produced this notification's
+ * signature, or null if none did.
+ *
+ * Three are accepted because PayFast's documented rules and its behaviour
+ * have not always agreed, and each round of getting this wrong costs a real
+ * payment to retest. "kept_empty" is what their notification code does.
+ * "dropped_empty" is what their payment form code does, kept in case a given
+ * account behaves that way. "raw" hashes the body exactly as it arrived,
+ * which sidesteps the question of whether decoding and re-encoding a value
+ * round trips byte for byte.
+ *
+ * Accepting more than one encoding does not weaken anything: every candidate
+ * is a hash over the same data with the same passphrase appended, so forging
+ * any of them still requires the passphrase.
+ */
+export function matchNotificationSignature(
+  fields: PayFastField[],
+  signature: string,
+  passphrase?: string,
+  rawBody?: string,
+): NotificationMatch {
+  const withoutSignature = fields.filter(([key]) => key !== "signature");
+
+  const candidates: Array<[NotificationMatch, string]> = [
+    [
+      "kept_empty",
+      signatureStringFor(withoutSignature, passphrase, { keepEmpty: true }),
+    ],
+    ["dropped_empty", signatureStringFor(withoutSignature, passphrase)],
+  ];
+
+  if (rawBody) {
+    const pairs = rawBody
+      .split("&")
+      .filter((pair) => pair && !/^signature=/.test(pair));
+    if (passphrase) {
+      pairs.push(`passphrase=${phpUrlEncode(passphrase.trim())}`);
+    }
+    candidates.push(["raw", pairs.join("&")]);
+  }
+
+  for (const [name, text] of candidates) {
+    const expected = createHash("md5").update(text).digest("hex");
+    if (timingSafeEqualHex(expected, signature)) return name;
+  }
+  return null;
+}
+
 export function verifyNotificationSignature(
   fields: PayFastField[],
   signature: string,
   passphrase?: string,
+  rawBody?: string,
 ): boolean {
-  const withoutSignature = fields.filter(([key]) => key !== "signature");
-  const expected = signPayload(withoutSignature, passphrase);
-  return timingSafeEqualHex(expected, signature);
+  return (
+    matchNotificationSignature(fields, signature, passphrase, rawBody) !== null
+  );
 }
 
 function timingSafeEqualHex(a: string, b: string): boolean {

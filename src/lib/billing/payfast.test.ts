@@ -8,6 +8,7 @@ import {
   checkoutFields,
   secretShape,
   signatureProbe,
+  matchNotificationSignature,
   diagnosticVariants,
   SANDBOX_DOCS_PASSPHRASE,
   processUrl,
@@ -519,5 +520,122 @@ describe("signatureProbe secrets", () => {
   it("reports a missing merchant key rather than printing an empty mask", () => {
     const probe = signatureProbe([["amount", "999.00"]]);
     expect(probe.merchantKeyShape).toBe("not set");
+  });
+});
+
+describe("notification signatures as PayFast actually sends them", () => {
+  const PASS = "a-live-passphrase";
+
+  /**
+   * Shaped like a real ITN: PayFast echoes all ten custom fields whether the
+   * merchant used them or not, so most of them arrive empty. That is the case
+   * the old implementation could never verify, because it dropped them before
+   * hashing while PayFast had included them.
+   */
+  const itn: PayFastField[] = [
+    ["m_payment_id", "ae70fadb-414e-4471-a006-ed8d6de1b620"],
+    ["pf_payment_id", "337347085"],
+    ["payment_status", "COMPLETE"],
+    ["item_name", "Certly subscription"],
+    ["item_description", "Monthly subscription for digital, 0 people on the register"],
+    ["amount_gross", "9.00"],
+    ["amount_fee", "-2.63"],
+    ["amount_net", "6.37"],
+    ["custom_str1", "ae70fadb-414e-4471-a006-ed8d6de1b620"],
+    ["custom_str2", "digital"],
+    ["custom_str3", ""],
+    ["custom_str4", ""],
+    ["custom_str5", ""],
+    ["custom_int1", "0"],
+    ["custom_int2", ""],
+    ["custom_int3", ""],
+    ["custom_int4", ""],
+    ["custom_int5", ""],
+    ["name_first", ""],
+    ["email_address", "admin@meyerdigitalco.com"],
+    ["merchant_id", "10000100"],
+    ["token", "a1b2c3d4-0000-1111-2222-333344445555"],
+  ];
+
+  function bodyOf(fields: PayFastField[], signature?: string): string {
+    const pairs = fields.map(
+      ([k, v]) => `${k}=${phpUrlEncode(String(v))}`,
+    );
+    if (signature) pairs.push(`signature=${signature}`);
+    return pairs.join("&");
+  }
+
+  it("verifies a notification that includes its empty fields", () => {
+    const signature = createHash("md5")
+      .update(signatureStringFor(itn, PASS, { keepEmpty: true }))
+      .digest("hex");
+
+    expect(matchNotificationSignature(itn, signature, PASS)).toBe("kept_empty");
+    expect(verifyNotificationSignature(itn, signature, PASS)).toBe(true);
+  });
+
+  it("is the case the old dropped-empty rule could never match", () => {
+    // Guards the regression directly: hashing without the empty fields gives a
+    // different signature, which is what PayFast kept rejecting.
+    const kept = signatureStringFor(itn, PASS, { keepEmpty: true });
+    const dropped = signatureStringFor(itn, PASS);
+    expect(kept).not.toBe(dropped);
+    expect(kept).toContain("custom_str3=&");
+    expect(dropped).not.toContain("custom_str3=");
+  });
+
+  it("still verifies one signed the payment-form way, with empties dropped", () => {
+    const signature = createHash("md5")
+      .update(signatureStringFor(itn, PASS))
+      .digest("hex");
+    expect(matchNotificationSignature(itn, signature, PASS)).toBe("dropped_empty");
+  });
+
+  it("verifies against the raw body when re-encoding would not round trip", () => {
+    // A body whose encoding differs from ours byte for byte: PayFast sent a
+    // space as %20 where phpUrlEncode produces a plus.
+    const raw = "pf_payment_id=337347085&item_name=Certly%20subscription";
+    const parsed: PayFastField[] = [
+      ["pf_payment_id", "337347085"],
+      ["item_name", "Certly subscription"],
+    ];
+    const signature = createHash("md5")
+      .update(`${raw}&passphrase=${phpUrlEncode(PASS)}`)
+      .digest("hex");
+
+    expect(matchNotificationSignature(parsed, signature, PASS)).toBe(null);
+    expect(matchNotificationSignature(parsed, signature, PASS, raw)).toBe("raw");
+  });
+
+  it("ignores the signature field itself wherever it sits in the body", () => {
+    const signature = createHash("md5")
+      .update(signatureStringFor(itn, PASS, { keepEmpty: true }))
+      .digest("hex");
+    const withSig: PayFastField[] = [...itn, ["signature", signature]];
+    expect(
+      matchNotificationSignature(withSig, signature, PASS, bodyOf(itn, signature)),
+    ).toBe("kept_empty");
+  });
+
+  it("refuses a tampered amount", () => {
+    const signature = createHash("md5")
+      .update(signatureStringFor(itn, PASS, { keepEmpty: true }))
+      .digest("hex");
+    const tampered = itn.map(([k, v]): PayFastField =>
+      k === "amount_gross" ? [k, "9000.00"] : [k, v],
+    );
+    expect(matchNotificationSignature(tampered, signature, PASS)).toBe(null);
+  });
+
+  it("refuses the right data signed with the wrong passphrase", () => {
+    const signature = createHash("md5")
+      .update(signatureStringFor(itn, "someone-elses-passphrase", { keepEmpty: true }))
+      .digest("hex");
+    expect(matchNotificationSignature(itn, signature, PASS)).toBe(null);
+  });
+
+  it("refuses an unsigned notification", () => {
+    expect(matchNotificationSignature(itn, "", PASS)).toBe(null);
+    expect(matchNotificationSignature(itn, "not-a-hash", PASS)).toBe(null);
   });
 });
