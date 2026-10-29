@@ -1,6 +1,6 @@
 import { publicOrigin } from "@/lib/origin";
 import { notFound } from "next/navigation";
-import { Users, Receipt, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Users, Receipt, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
 import { isOwner } from "@/lib/auth/roles";
 import { getBillingState } from "@/lib/billing/access";
@@ -101,7 +101,8 @@ export default async function BillingPage({
           Thanks, your subscription is active.
         </p>
       ) : null}
-      {sp.paid === "1" && state.state !== "subscribed" ? (
+      {sp.paid === "1" &&
+      (state.state === "trialing" || state.state === "trial_expired") ? (
         <div className="bg-amber-50 border border-amber-300 text-amber-950 rounded-xl px-4 py-3 text-sm space-y-2">
           <p className="font-bold">
             We have not had PayFast&apos;s confirmation yet.
@@ -275,6 +276,25 @@ function Status({
           keep the register, the exports and the safety file packs; you just
           cannot add or change anything until you subscribe.
         </p>
+      </section>
+    );
+  }
+
+  // Cancelled but still inside the paid period is not a fault and needs
+  // nothing from anybody. Shouting "Action needed" in red at someone who just
+  // chose to cancel, and who still has everything they paid for, reads like
+  // the cancellation failed.
+  if (state.state === "cancelled" && state.canWrite) {
+    return (
+      <section className="bg-[var(--brand-cream)] border border-[var(--brand-line)] rounded-2xl p-6 flex items-start gap-3">
+        <Clock size={20} className="text-[var(--brand-slate)] mt-0.5 shrink-0" />
+        <div>
+          <p className="font-black">Cancelled</p>
+          <p className="text-sm text-[var(--brand-slate)] mt-1">
+            {state.reason} Nothing more will be debited, and you can subscribe
+            again whenever you like.
+          </p>
+        </div>
       </section>
     );
   }
