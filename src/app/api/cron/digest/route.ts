@@ -12,6 +12,7 @@ import { buildDigest, digestIsWorthSending } from "@/lib/email/digest";
 import { sendEmail, emailIsConfigured } from "@/lib/email/send";
 import { accessFor, isPlan, isSubscriptionStatus } from "@/lib/billing/plan";
 import { checkCronAuth } from "@/lib/cron-auth";
+import { describeEnv } from "@/lib/env-shape";
 
 
 
@@ -51,7 +52,12 @@ export async function GET(request: NextRequest) {
   console.info("cron.digest started");
 
   if (!emailIsConfigured()) {
-    console.warn("cron.digest finished: no sending domain configured");
+    console.warn(
+      `cron.digest finished: no sending domain configured ${describeEnv([
+        "RESEND_API_KEY",
+        "CERTLY_EMAIL_FROM",
+      ])}`,
+    );
     return Response.json({
       ok: true,
       skipped: "No sending domain configured. Nothing was sent.",

@@ -33,13 +33,16 @@ export interface EmailConfig {
 }
 
 export function emailConfig(): EmailConfig | null {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.CERTLY_EMAIL_FROM;
+  // Trimmed, because pasting into a hosting dashboard is how a trailing
+  // newline gets into a value, and a newline in a From header is a malformed
+  // message rather than an obvious error.
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.CERTLY_EMAIL_FROM?.trim();
   if (!apiKey || !from) return null;
   return {
     apiKey,
     from,
-    replyTo: process.env.CERTLY_EMAIL_REPLY_TO || undefined,
+    replyTo: process.env.CERTLY_EMAIL_REPLY_TO?.trim() || undefined,
   };
 }
 
