@@ -124,9 +124,15 @@ export interface DiagnosticVariant {
 }
 
 export interface SignatureProbe {
-  /** The exact string hashed, with any passphrase replaced by its shape. */
+  /**
+   * The exact string hashed, with the two secrets in it replaced by their
+   * shape: the merchant key and the passphrase. Everything else is either
+   * public or already visible in the posted form, so this is safe to show a
+   * workspace owner on a live merchant account as well as in the sandbox.
+   */
   hashedString: string;
   passphraseShape: string;
+  merchantKeyShape: string;
   variants: DiagnosticVariant[];
 }
 
@@ -257,11 +263,25 @@ export function signatureProbe(
   const shape = secretShape(passphrase);
   const configured = passphrase?.trim();
 
+  const merchantKey = fields.find(([k]) => k === "merchant_key")?.[1] ?? "";
+  const merchantKeyShape = secretShape(merchantKey);
+
+  const withPassphrase = configured
+    ? `${body}&passphrase=${shape}`
+    : `${body}   [nothing appended, no passphrase is set]`;
+
+  // The merchant key is a secret and it sits inside the signature string, so
+  // it is replaced by its shape rather than printed. First character, last
+  // character and length are enough to check it against the PayFast dashboard
+  // and not enough to use it.
+  const hashedString = merchantKey
+    ? withPassphrase.split(merchantKey).join(merchantKeyShape)
+    : withPassphrase;
+
   return {
-    hashedString: configured
-      ? `${body}&passphrase=${shape}`
-      : `${body}   [nothing appended, no passphrase is set]`,
+    hashedString,
     passphraseShape: shape,
+    merchantKeyShape,
     variants: diagnosticVariants(fields, passphrase),
   };
 }

@@ -62,10 +62,13 @@ export default async function BillingPage({
         })
       : null;
 
-  // Sandbox only, so a signature dump can never be rendered against a live
-  // merchant account however the query string is set.
+  // Readable on a live account too, because a signature rejection there is
+  // exactly as opaque as in the sandbox. The two secrets inside the string,
+  // the merchant key and the passphrase, are replaced by their shape, and the
+  // alternative-signature test submissions stay sandbox only so nothing here
+  // can start a real debit order.
   const diagnostic =
-    checkout && config?.sandbox && sp.debug === "signature"
+    checkout && config && sp.debug === "signature"
       ? signatureProbe(
           checkout.fields.filter(([key]) => key !== "signature"),
           config.passphrase,
@@ -188,6 +191,7 @@ export default async function BillingPage({
           action={checkout.action}
           probe={diagnostic}
           merchantId={config.merchantId}
+          sandbox={config.sandbox}
         />
       ) : null}
 

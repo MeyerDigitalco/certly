@@ -495,3 +495,29 @@ describe("diagnosticVariants", () => {
     expect(new Set(variants.map((v) => v.signature)).size).toBe(variants.length);
   });
 });
+
+describe("signatureProbe secrets", () => {
+  const fields: PayFastField[] = [
+    ["merchant_id", "10000100"],
+    ["merchant_key", "liveMerchantKey123"],
+    ["amount", "999.00"],
+  ];
+
+  it("never prints the merchant key, which is a secret inside the string", () => {
+    const probe = signatureProbe(fields, "a-real-live-passphrase");
+    expect(probe.hashedString.includes("liveMerchantKey123")).toBe(false);
+    expect(probe.hashedString.includes("a-real-live-passphrase")).toBe(false);
+    expect(probe.merchantKeyShape).toBe("l****************3 (18 characters)");
+  });
+
+  it("still prints the public parts so the string can be checked", () => {
+    const probe = signatureProbe(fields, "a-real-live-passphrase");
+    expect(probe.hashedString).toContain("merchant_id=10000100");
+    expect(probe.hashedString).toContain("amount=999.00");
+  });
+
+  it("reports a missing merchant key rather than printing an empty mask", () => {
+    const probe = signatureProbe([["amount", "999.00"]]);
+    expect(probe.merchantKeyShape).toBe("not set");
+  });
+});

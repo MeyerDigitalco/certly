@@ -19,10 +19,13 @@ export default function PayFastDiagnostic({
   action,
   probe,
   merchantId,
+  sandbox,
 }: {
   action: string;
   probe: SignatureProbe;
   merchantId: string;
+  /** Alternative-signature test submissions are sandbox only. */
+  sandbox: boolean;
 }) {
   return (
     <section className="bg-[var(--brand-cream)] border-2 border-dashed border-[var(--brand-line)] rounded-2xl p-6 space-y-5">
@@ -34,8 +37,9 @@ export default function PayFastDiagnostic({
         <div>
           <h2 className="text-lg font-black">Signature diagnostic</h2>
           <p className="text-sm text-[var(--brand-slate)] mt-1">
-            Sandbox only. This panel does not exist on a live merchant account.
-            Nothing here is charged to anybody.
+            {sandbox
+              ? "Sandbox. Nothing here is charged to anybody."
+              : "Live merchant account. This panel only reads; it never submits anything. The merchant key and passphrase are shown as a shape, not a value."}
           </p>
         </div>
       </header>
@@ -43,8 +47,10 @@ export default function PayFastDiagnostic({
       <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
         <dt className="font-bold">Posting to</dt>
         <dd className="font-mono break-all">{action}</dd>
-        <dt className="font-bold">Merchant</dt>
+        <dt className="font-bold">Merchant id</dt>
         <dd className="font-mono">{merchantId}</dd>
+        <dt className="font-bold">Merchant key</dt>
+        <dd className="font-mono">{probe.merchantKeyShape}</dd>
         <dt className="font-bold">Passphrase</dt>
         <dd className="font-mono">{probe.passphraseShape}</dd>
       </dl>
@@ -58,6 +64,7 @@ export default function PayFastDiagnostic({
         </pre>
       </div>
 
+      {!sandbox ? null : (
       <div className="space-y-3">
         <p className="text-sm font-bold">
           Open each in turn and write down the exact error
@@ -96,6 +103,7 @@ export default function PayFastDiagnostic({
           </form>
         ))}
       </div>
+      )}
     </section>
   );
 }
