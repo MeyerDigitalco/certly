@@ -32,7 +32,19 @@ const csp = [
   // is not, and Supabase is the only service either directive serves.
   `img-src 'self' data: blob: https://*.supabase.co${SUPABASE_ORIGIN ? ` ${SUPABASE_ORIGIN}` : ""}`,
   `connect-src 'self' https://*.supabase.co wss://*.supabase.co${SUPABASE_ORIGIN ? ` ${SUPABASE_ORIGIN}` : ""} https://vitals.vercel-insights.com`,
-  "form-action 'self' https://www.payfast.co.za https://sandbox.payfast.co.za",
+  // form-action governs the whole navigation that a form submission starts,
+  // redirects included. PayFast answers /eng/process with a 302 and the flow
+  // spans two domains, payfast.co.za and payfast.io, with the customer sent
+  // between them by geolocation. Listing only the host the form posts to lets
+  // the POST succeed and then kills the redirect silently: the browser stays
+  // on the billing page with no error the customer can see. Both domains are
+  // listed with and without a wildcard, because a wildcard does not match the
+  // bare domain.
+  [
+    "form-action 'self'",
+    "https://payfast.co.za https://*.payfast.co.za",
+    "https://payfast.io https://*.payfast.io",
+  ].join(" "),
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",

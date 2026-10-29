@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  basePriceCents,
+  LIST_BASE_MONTHLY_CENTS,
   quoteFor,
   accessFor,
   formatRands,
@@ -207,5 +209,54 @@ describe("billing guards", () => {
     }
     expect(isSubscriptionStatus("trialing")).toBe(false);
     expect(isSubscriptionStatus(undefined)).toBe(false);
+  });
+});
+
+describe("basePriceCents", () => {
+  it("is the list price when nothing overrides it", () => {
+    expect(basePriceCents(undefined)).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("   ")).toBe(LIST_BASE_MONTHLY_CENTS);
+  });
+
+  it("accepts a lower price for a live payment test", () => {
+    expect(basePriceCents("900")).toBe(900);
+    expect(basePriceCents(" 900 ")).toBe(900);
+    expect(basePriceCents("100")).toBe(100);
+  });
+
+  it("refuses to raise the price above the list price", () => {
+    // An extra zero must never turn R999 into R9990.
+    expect(basePriceCents("999000")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents(String(LIST_BASE_MONTHLY_CENTS + 1))).toBe(
+      LIST_BASE_MONTHLY_CENTS,
+    );
+  });
+
+  it("refuses anything below one rand, including zero and negatives", () => {
+    expect(basePriceCents("0")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("99")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("-900")).toBe(LIST_BASE_MONTHLY_CENTS);
+  });
+
+  it("refuses anything that is not a whole number of cents", () => {
+    expect(basePriceCents("abc")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("9.5")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("1e3")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("0x384")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("+900")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("NaN")).toBe(LIST_BASE_MONTHLY_CENTS);
+    expect(basePriceCents("Infinity")).toBe(LIST_BASE_MONTHLY_CENTS);
+  });
+
+  it("quotes and formats the overridden price consistently", () => {
+    // What the billing page shows and what PayFast is asked for come from the
+    // same number, so a test charge cannot display one price and bill another.
+    const q = quoteFor(10);
+    expect(q.baseCents).toBe(BASE_MONTHLY_CENTS);
+    expect(q.totalCents).toBe(BASE_MONTHLY_CENTS);
+    expect(payfastAmount(q.totalCents)).toBe(
+      (BASE_MONTHLY_CENTS / 100).toFixed(2),
+    );
   });
 });

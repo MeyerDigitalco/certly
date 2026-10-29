@@ -1,7 +1,39 @@
 export const CURRENCY = "ZAR";
 
 /** Rands per month for a workspace, before any seats above the included count. */
-export const BASE_MONTHLY_CENTS = 99_900;
+export const LIST_BASE_MONTHLY_CENTS = 99_900;
+
+/**
+ * The base price this deployment actually charges.
+ *
+ * Normally the list price. CERTLY_BASE_PRICE_CENTS overrides it so a live
+ * payment can be tested end to end against the real gateway for a few rand
+ * instead of a few hundred, which is the only way to prove the signature, the
+ * notification, the token and the cancel path all work.
+ *
+ * The override can only ever lower the price, and never below one rand. A
+ * mistyped variable should fail towards charging a customer too little, never
+ * too much, so an extra zero cannot turn R999 into R9990.
+ */
+export function basePriceCents(
+  raw: string | undefined = process.env.CERTLY_BASE_PRICE_CENTS,
+): number {
+  const value = (raw ?? "").trim();
+  if (!value) return LIST_BASE_MONTHLY_CENTS;
+
+  // Plain digits only. Number() would otherwise accept "1e3", "0x384" and
+  // " +900", none of which anybody means to type into a price.
+  if (!/^\d+$/.test(value)) return LIST_BASE_MONTHLY_CENTS;
+
+  const cents = Number(value);
+  if (!Number.isInteger(cents)) return LIST_BASE_MONTHLY_CENTS;
+  if (cents < 100 || cents > LIST_BASE_MONTHLY_CENTS) {
+    return LIST_BASE_MONTHLY_CENTS;
+  }
+  return cents;
+}
+
+export const BASE_MONTHLY_CENTS = basePriceCents();
 
 /** People on the register covered by the base price. */
 export const INCLUDED_SEATS = 50;
