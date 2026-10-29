@@ -20,6 +20,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 export type CronRefusal =
   | "no_secret_configured"
+  | "secret_is_blank"
   | "no_credential_presented"
   | "mismatch";
 
@@ -33,26 +34,53 @@ export interface CronAuthResult {
    * the job authenticates.
    */
   saw: string;
+  /**
+   * The configured secret's shape, never its value: "absent", "blank", or a
+   * character count. A variable that exists in the dashboard but arrives
+   * empty looks identical to one that was never set, and those have
+   * different fixes.
+   */
+  secret: string;
 }
 
 export function checkCronAuth(request: Request): CronAuthResult {
   const saw = relevantHeaderNames(request);
-  const secret = process.env.CRON_SECRET;
+  const raw = process.env.CRON_SECRET;
 
-  if (!secret) return { ok: false, reason: "no_secret_configured", saw };
+  if (raw === undefined) {
+    return { ok: false, reason: "no_secret_configured", saw, secret: "absent" };
+  }
+
+  const secret = raw.trim();
+  if (!secret) {
+    return {
+      ok: false,
+      reason: "secret_is_blank",
+      saw,
+      secret: `blank, ${raw.length} characters of whitespace`,
+    };
+  }
+
+  const shape = `${secret.length} characters`;
 
   const header = request.headers.get("authorization");
-  if (!header) return { ok: false, reason: "no_credential_presented", saw };
 
   // The scheme is optional and the header arrives already trimmed, so a bare
   // "Bearer" has to resolve to nothing rather than to the credential
   // "Bearer".
-  const presented = header.replace(/^Bearer\s*/i, "").trim();
-  if (!presented) return { ok: false, reason: "no_credential_presented", saw };
+  const presented = (header ?? "").replace(/^Bearer\s*/i, "").trim();
+  if (!presented) {
+    return {
+      ok: false,
+      reason: "no_credential_presented",
+      saw,
+      secret: shape,
+    };
+  }
 
   return constantTimeEquals(presented, secret)
-    ? { ok: true, reason: "ok", saw }
-    : { ok: false, reason: "mismatch", saw };
+    ? { ok: true, reason: "ok", saw, secret: shape }
+    : { ok: false, reason: "mismatch", saw, secret: shape };
 }
 
 export function authorisedCron(request: Request): boolean {

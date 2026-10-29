@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) {
     // Greppable, and specific: a job that silently never runs is the worst
     // failure in the product, and the three reasons have different fixes.
-    console.warn(`cron.digest refused: ${auth.reason} saw=${auth.saw}`);
+    console.warn(
+      `cron.digest refused: ${auth.reason} secret=${auth.secret} saw=${auth.saw}`,
+    );
     return new Response("Not found", { status: 404 });
   }
 

@@ -115,3 +115,41 @@ describe("checkCronAuth reasons", () => {
     expect(checkCronAuth(req({ "x-vercel-cron": "1" })).ok).toBe(false);
   });
 });
+
+describe("telling an absent secret from a blank one", () => {
+  it("reports absent when the variable is not set at all", () => {
+    delete process.env.CRON_SECRET;
+    const r = checkCronAuth(req({ authorization: "Bearer x" }));
+    expect(r.reason).toBe("no_secret_configured");
+    expect(r.secret).toBe("absent");
+  });
+
+  it("reports blank when the variable exists but holds nothing", () => {
+    // A variable created in the dashboard with no value, or one whose value
+    // was cleared, reads as an empty string rather than undefined.
+    process.env.CRON_SECRET = "";
+    const r = checkCronAuth(req({ authorization: "Bearer x" }));
+    expect(r.reason).toBe("secret_is_blank");
+    expect(r.secret).toContain("blank");
+  });
+
+  it("reports blank when the value is only whitespace", () => {
+    process.env.CRON_SECRET = "   \n";
+    const r = checkCronAuth(req({ authorization: "Bearer x" }));
+    expect(r.reason).toBe("secret_is_blank");
+  });
+
+  it("reports the length, never the value, when one is configured", () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    const r = checkCronAuth(req({ authorization: "Bearer wrong" }));
+    expect(r.reason).toBe("mismatch");
+    expect(r.secret).toBe("12 characters");
+    expect(JSON.stringify(r)).not.toContain("s3cret-value");
+  });
+
+  it("ignores whitespace around a pasted value", () => {
+    // Pasting into a dashboard field is how a trailing newline gets in.
+    process.env.CRON_SECRET = "  s3cret-value\n";
+    expect(authorisedCron(req({ authorization: "Bearer s3cret-value" }))).toBe(true);
+  });
+});
