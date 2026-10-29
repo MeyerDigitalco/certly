@@ -16,6 +16,21 @@ does nothing until the deployment is rebuilt.** More than one afternoon has
 gone into debugging code that was behaving correctly against a value that had
 not shipped yet.
 
+**A variable listed in the dashboard is not necessarily a variable with a
+value in it.** Three features were silently switched off for over a month by
+variables that were present, correctly named, correctly scoped, and empty:
+the scheduled jobs, the weekly digest, and the PayFast passphrase. Nothing in
+the hosting UI distinguishes a blank value from a working one, and from inside
+the application an empty string is indistinguishable from an unset variable
+unless something looks.
+
+So when missing configuration turns a feature off, say which piece is missing.
+`describeEnv` in `src/lib/env-shape.ts` reports any variable as `absent`,
+`blank` or a character count, never its value, and is safe to log from a
+scheduled job or an admin surface. Use it on every new integration rather than
+failing quietly, because a feature that does nothing and says nothing is the
+most expensive failure in this codebase so far.
+
 ### Required
 
 | Variable | What it is |
