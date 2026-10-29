@@ -21,6 +21,7 @@ import PayFastDiagnostic from "./PayFastDiagnostic";
 import CloseAccount from "./CloseAccount";
 import CancelSubscription from "./CancelSubscription";
 import PageHeader from "@/components/app/PageHeader";
+import { SITE } from "@/lib/site";
 
 export const metadata = { title: "Billing" };
 export const dynamic = "force-dynamic";
@@ -91,11 +92,36 @@ export default async function BillingPage({
         back={{ href: `/${slug}/hr`, label: "Back to overview" }}
       />
 
-      {sp.paid === "1" ? (
+      {/* Returned from PayFast. The old message said the same thing whether
+          the confirmation had arrived, failed or never been sent, which reads
+          as reassurance exactly when something has gone wrong. It now says
+          which of the two happened. */}
+      {sp.paid === "1" && state.state === "subscribed" ? (
         <p className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl px-4 py-3 text-sm">
-          Thanks. PayFast confirms subscriptions in the background, so this page
-          may take a minute to catch up. Refresh if it still shows a trial.
+          Thanks, your subscription is active.
         </p>
+      ) : null}
+      {sp.paid === "1" && state.state !== "subscribed" ? (
+        <div className="bg-amber-50 border border-amber-300 text-amber-950 rounded-xl px-4 py-3 text-sm space-y-2">
+          <p className="font-bold">
+            We have not had PayFast&apos;s confirmation yet.
+          </p>
+          <p>
+            PayFast confirms in the background and it usually takes seconds, so
+            refresh this page once. If it still says trial after a minute, the
+            confirmation did not reach us and your workspace will not go active
+            on its own.
+          </p>
+          <p>
+            If money has left your account, nothing is lost and you will not be
+            charged twice. Email{" "}
+            <a className="underline font-bold" href={`mailto:${SITE.email}`}>
+              {SITE.email}
+            </a>{" "}
+            with the date and amount and we will sort it out, including
+            stopping the debit order if one was set up.
+          </p>
+        </div>
       ) : null}
       {sp.cancelled === "1" ? (
         <p className="bg-[var(--brand-cream)] border border-[var(--brand-line)] rounded-xl px-4 py-3 text-sm">
