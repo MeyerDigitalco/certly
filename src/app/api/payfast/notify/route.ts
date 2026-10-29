@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { promises as dns } from "node:dns";
 import type { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,7 +11,7 @@ import {
 } from "@/lib/billing/payfast";
 import { quoteFor } from "@/lib/billing/plan";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -47,6 +48,29 @@ export const maxDuration = 30;
  */
 
 const OK = new Response("", { status: 200 });
+
+/**
+ * Record why a notification was refused.
+ *
+ * The handler answers 200 to everything on purpose, and the checks that run
+ * before the billing_events insert leave no trace at all, so an ITN that is
+ * rejected and an ITN that never arrived look identical from the database.
+ * That is the difference between a five minute diagnosis and a day of
+ * guessing, and it matters most on the live payment path.
+ *
+ * This writes to the platform log rather than the database deliberately. The
+ * endpoint is unauthenticated by nature, so a row per rejected call would be
+ * a table anyone on the internet can fill. Nothing here identifies a person:
+ * the payment reference and the reason, and no email, name or amount.
+ */
+function refused(reason: string, detail: Record<string, string> = {}): Response {
+  const parts = Object.entries(detail)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(" ");
+  console.warn(`payfast.notify refused: ${reason}${parts ? ` ${parts}` : ""}`);
+  return OK;
+}
 
 function sourceIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for") ?? "";
@@ -100,7 +124,7 @@ async function confirmWithPayFast(
 
 export async function POST(request: NextRequest) {
   const config = payfastConfig();
-  if (!config) return OK;
+  if (!config) return refused("no PayFast credentials on this deployment");
 
   const raw = await request.text();
   const fields: PayFastField[] = [];
@@ -120,11 +144,22 @@ export async function POST(request: NextRequest) {
 
   const signature = get("signature");
   if (!verifyNotificationSignature(fields, signature, config.passphrase)) {
-    return OK;
+    // Almost always PAYFAST_PASSPHRASE here not matching the one set on the
+    // PayFast account, rather than anything hostile.
+    return refused("signature mismatch", {
+      pf_payment_id: get("pf_payment_id"),
+      passphrase_set: config.passphrase ? "yes" : "no",
+      fields: String(fields.length),
+    });
   }
 
   if (!(await confirmWithPayFast(raw, config.sandbox))) {
-    return OK;
+    // PayFast did not answer VALID to the server to server check, or we could
+    // not reach them at all.
+    return refused("PayFast did not confirm the notification", {
+      pf_payment_id: get("pf_payment_id"),
+      sandbox: String(config.sandbox),
+    });
   }
 
   const ipCheck = config.sandbox
@@ -137,7 +172,12 @@ export async function POST(request: NextRequest) {
   const token = get("token");
   const grossRands = Number(get("amount_gross"));
 
-  if (!orgId || !pfPaymentId) return OK;
+  if (!orgId || !pfPaymentId) {
+    return refused("notification is missing the workspace or payment id", {
+      has_org: orgId ? "yes" : "no",
+      has_payment_id: pfPaymentId ? "yes" : "no",
+    });
+  }
 
   const admin: any = createAdminClient();
 
@@ -146,7 +186,9 @@ export async function POST(request: NextRequest) {
     .select("id, payfast_token")
     .eq("id", orgId)
     .maybeSingle();
-  if (!org) return OK;
+  if (!org) {
+    return refused("no workspace with that id", { pf_payment_id: pfPaymentId });
+  }
 
   const { count: seatCount } = await admin
     .from("employees")
@@ -186,10 +228,24 @@ export async function POST(request: NextRequest) {
 
   // 23505 on pf_payment_id means PayFast is retrying something already
   // applied. Answer 200 so the retries stop.
+  // A repeat of something already applied. PayFast retries until it gets a
+  // clean 200, so this is expected rather than a fault.
   if (insertError?.code === "23505") return OK;
-  if (insertError) return OK;
+  if (insertError) {
+    return refused("could not record the notification", {
+      pf_payment_id: pfPaymentId,
+      code: insertError.code ?? "",
+    });
+  }
 
-  if (!amountOk) return OK;
+  if (!amountOk) {
+    return refused("short payment", {
+      pf_payment_id: pfPaymentId,
+      paid: String(grossRands),
+      expected: String(expectedRands),
+      seats: String(seats),
+    });
+  }
 
   const now = new Date();
   const periodEnd = new Date(now);
@@ -209,11 +265,15 @@ export async function POST(request: NextRequest) {
         cancelled_at: null,
       })
       .eq("id", orgId);
+    console.info(
+      `payfast.notify applied: COMPLETE pf_payment_id=${pfPaymentId} seats=${seats} token=${token ? "stored" : "MISSING"}`,
+    );
   } else if (paymentStatus === "FAILED") {
     await admin
       .from("organisations")
       .update({ subscription_status: "past_due" })
       .eq("id", orgId);
+    console.info(`payfast.notify applied: FAILED pf_payment_id=${pfPaymentId}`);
   } else if (paymentStatus === "CANCELLED") {
     await admin
       .from("organisations")
