@@ -248,8 +248,8 @@ describe("tenant isolation", () => {
       // before doing anything, and the helper must be the real check.
       expect(
         file!.source,
-        `${path} must gate on authorisedCron before reading every workspace`,
-      ).toContain("authorisedCron(request)");
+        `${path} must gate on the shared cron check before reading every workspace`,
+      ).toMatch(/\b(checkCronAuth|authorisedCron)\(request\)/);
       expect(file!.source).toContain('from "@/lib/cron-auth"');
     }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { authorisedCron } from "./cron-auth";
+import { authorisedCron, checkCronAuth } from "./cron-auth";
 
 const ORIGINAL = process.env.CRON_SECRET;
 
@@ -53,5 +53,65 @@ describe("authorisedCron", () => {
     expect(
       authorisedCron(req({ authorization: `Bearer ${"x".repeat(500)}` })),
     ).toBe(false);
+  });
+});
+
+describe("checkCronAuth reasons", () => {
+  it("separates a missing secret from a wrong one", () => {
+    delete process.env.CRON_SECRET;
+    expect(checkCronAuth(req({ authorization: "Bearer anything" })).reason).toBe(
+      "no_secret_configured",
+    );
+
+    process.env.CRON_SECRET = "s3cret-value";
+    expect(checkCronAuth(req({ authorization: "Bearer wrong" })).reason).toBe(
+      "mismatch",
+    );
+  });
+
+  it("separates a wrong credential from none being sent at all", () => {
+    // These have opposite fixes: rotate the secret, or change how the job
+    // authenticates because the platform is not sending one.
+    process.env.CRON_SECRET = "s3cret-value";
+    expect(checkCronAuth(req({})).reason).toBe("no_credential_presented");
+    expect(checkCronAuth(req({ authorization: "Bearer " })).reason).toBe(
+      "no_credential_presented",
+    );
+  });
+
+  it("reports which relevant headers arrived, by name", () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    const result = checkCronAuth(
+      req({
+        authorization: "Bearer wrong",
+        "x-vercel-cron": "1",
+        "x-vercel-id": "cpt1::abc",
+        "user-agent": "vercel-cron/1.0",
+      }),
+    );
+    expect(result.saw).toBe("authorization,x-vercel-cron,x-vercel-id");
+    expect(result.saw).not.toContain("user-agent");
+  });
+
+  it("says none when nothing relevant arrived", () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    expect(checkCronAuth(req({ "user-agent": "curl" })).saw).toBe("none");
+  });
+
+  it("never puts a header value in what it reports", () => {
+    process.env.CRON_SECRET = "s3cret-value";
+    const result = checkCronAuth(
+      req({ authorization: "Bearer s3cret-value", "x-vercel-cron": "1" }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.saw).not.toContain("s3cret-value");
+    expect(JSON.stringify(result)).not.toContain("s3cret-value");
+  });
+
+  it("does not accept a platform header as proof on its own", () => {
+    // x-vercel-cron can be sent by anyone. Trusting it would make a route
+    // that reads every workspace public.
+    process.env.CRON_SECRET = "s3cret-value";
+    expect(checkCronAuth(req({ "x-vercel-cron": "1" })).ok).toBe(false);
   });
 });

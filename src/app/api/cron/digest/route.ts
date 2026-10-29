@@ -11,7 +11,7 @@ import {
 import { buildDigest, digestIsWorthSending } from "@/lib/email/digest";
 import { sendEmail, emailIsConfigured } from "@/lib/email/send";
 import { accessFor, isPlan, isSubscriptionStatus } from "@/lib/billing/plan";
-import { authorisedCron } from "@/lib/cron-auth";
+import { checkCronAuth } from "@/lib/cron-auth";
 
 
 
@@ -38,10 +38,11 @@ export const maxDuration = 300;
 
 
 export async function GET(request: NextRequest) {
-  if (!authorisedCron(request)) {
-    // Greppable, because a scheduled job that silently never runs is the
-    // worst kind: nothing is on fire and nobody is told.
-    console.warn("cron.digest refused: CRON_SECRET did not match");
+  const auth = checkCronAuth(request);
+  if (!auth.ok) {
+    // Greppable, and specific: a job that silently never runs is the worst
+    // failure in the product, and the three reasons have different fixes.
+    console.warn(`cron.digest refused: ${auth.reason} saw=${auth.saw}`);
     return new Response("Not found", { status: 404 });
   }
 
