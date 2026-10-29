@@ -31,8 +31,11 @@ export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   if (!authorisedCron(request)) {
+    console.warn("cron.reconcile-seats refused: CRON_SECRET did not match");
     return new Response("Not found", { status: 404 });
   }
+
+  console.info("cron.reconcile-seats started");
 
   const config = payfastConfig();
   if (!config) {
@@ -116,5 +119,8 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  console.info(
+    `cron.reconcile-seats finished: changed=${report.length}`,
+  );
   return Response.json({ ok: true, changed: report.length, report });
 }
