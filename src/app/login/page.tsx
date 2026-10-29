@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CertlyMark } from "@/components/CertlyMark";
@@ -5,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import LoginForm from "./LoginForm";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export const metadata = {
   title: "Sign in",
@@ -15,7 +16,7 @@ export const metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; link?: string }>;
 }) {
   const sp = await searchParams;
 
@@ -37,6 +38,16 @@ export default async function LoginPage({
           <p className="mt-1 text-sm text-[var(--brand-slate)]">
             Welcome back. Enter your details to continue.
           </p>
+          {sp.link === "expired" ? (
+            <p className="mt-4 text-sm bg-amber-50 border border-amber-300 text-amber-950 rounded-md px-3 py-2">
+              That link has expired, has already been used, or was opened on a
+              different device from the one you signed up on. Start again from{" "}
+              <Link href="/signup" className="underline font-bold">
+                create a workspace
+              </Link>{" "}
+              and we will send a new one.
+            </p>
+          ) : null}
           <div className="mt-6">
             <LoginForm next={sp.next} />
           </div>

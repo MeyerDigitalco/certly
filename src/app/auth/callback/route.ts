@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export const dynamic = "force-dynamic";
 
@@ -53,5 +54,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/forgot-password?expired=1", url.origin));
+  // Where a failed link lands depends on what it was for. Sending someone
+  // whose signup confirmation did not take to a password reset page tells
+  // them to recover an account they have not finished creating.
+  const failure =
+    type === "recovery" || type === "magiclink"
+      ? "/forgot-password?expired=1"
+      : "/login?link=expired";
+  return NextResponse.redirect(new URL(failure, url.origin));
 }
