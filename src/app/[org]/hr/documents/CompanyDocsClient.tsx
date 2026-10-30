@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { prepareUpload } from "@/lib/images/shrink";
+import { UPLOAD_LIMIT_BYTES } from "@/lib/images/limits";
 import { useGuardedTransition } from "@/components/useGuardedTransition";
 import { useRouter } from "next/navigation";
 import {
@@ -48,6 +50,11 @@ export default function CompanyDocsClient({
     const form = new FormData(e.currentTarget);
     if (editing) form.set("id", editing.id);
     startTransition(async () => {
+      const prepared = await prepareUpload(form, "file", UPLOAD_LIMIT_BYTES);
+      if (!prepared.ok) {
+        setError(prepared.error);
+        return;
+      }
       const result = await upsertCompanyDocument(orgId, slug, form);
       if (!result.ok) {
         setError(result.error);

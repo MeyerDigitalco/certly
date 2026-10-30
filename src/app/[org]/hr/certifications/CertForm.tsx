@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { prepareUpload } from "@/lib/images/shrink";
+import { UPLOAD_LIMIT_BYTES } from "@/lib/images/limits";
 import { useRouter } from "next/navigation";
 import { Save, Trash2, Paperclip, Eye, X } from "lucide-react";
 import type {
@@ -43,6 +45,11 @@ export default function CertForm({
     setError(null);
     const form = new FormData(e.currentTarget);
     startTransition(async () => {
+      const prepared = await prepareUpload(form, "file", UPLOAD_LIMIT_BYTES);
+      if (!prepared.ok) {
+        setError({ message: prepared.error, field: "file" });
+        return;
+      }
       const result = await upsertCertification(orgId, slug, form);
       if (!result.ok) {
         setError({ message: result.error, field: result.field });

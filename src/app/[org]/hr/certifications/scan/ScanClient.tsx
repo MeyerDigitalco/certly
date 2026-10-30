@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { shrinkImage, describeSize } from "@/lib/images/shrink";
+import { UPLOAD_LIMIT_BYTES } from "@/lib/images/limits";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -70,9 +72,22 @@ export default function ScanClient({
     e.preventDefault();
     if (!file) return;
     setError(null);
-    const form = new FormData();
-    form.set("file", file);
     startReading(async () => {
+      // A photograph from a phone is several megabytes and would be refused
+      // before it reached the server, with nothing to tell the person why.
+      // Shrinking it here is invisible, quicker to upload on site, and still
+      // far more detail than is needed to read a printed certificate.
+      const sending = await shrinkImage(file);
+
+      if (sending.size > UPLOAD_LIMIT_BYTES) {
+        setError(
+          `That file is ${describeSize(sending.size)}, which is over the ${describeSize(UPLOAD_LIMIT_BYTES)} limit. Photograph the certificate instead of scanning it, or save the PDF at a lower quality.`,
+        );
+        return;
+      }
+
+      const form = new FormData();
+      form.set("file", sending);
       const result = await extractCertificate(orgId, form);
       if (!result.ok) {
         setError(result.error);

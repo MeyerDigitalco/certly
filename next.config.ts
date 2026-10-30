@@ -69,6 +69,22 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Next refuses a server action body over 1 MB by default, which is less
+      // than a single photograph from a phone. Every upload in this product
+      // goes through a server action, so that default silently broke
+      // scanning a certificate, attaching a licence and adding a company
+      // document, all with a generic error page.
+      //
+      // Four megabytes, because Vercel rejects a request body over roughly
+      // four and a half whatever this says, and multipart adds overhead on
+      // top of the file itself. Anything larger is handled by shrinking the
+      // image in the browser first rather than by raising this further.
+      bodySizeLimit: "4mb",
+    },
+  },
+
   poweredByHeader: false,
   async headers() {
     return [
