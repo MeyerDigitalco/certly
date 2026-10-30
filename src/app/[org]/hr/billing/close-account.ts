@@ -124,10 +124,13 @@ export async function closeAccount(
     .eq("id", orgId);
 
   if (error) {
+    // The stored files were already removed above, so this is not a clean
+    // refusal and the old wording said the opposite. Say what actually
+    // happened: the records are still here, the uploads are not.
     return {
       ok: false,
       error:
-        "The workspace could not be closed. Nothing further was deleted. Contact us and we will finish it by hand.",
+        "The workspace could not be closed. The uploaded files have already been removed and cannot be recovered, but the records are still here. Contact us and we will finish it by hand.",
     };
   }
 
