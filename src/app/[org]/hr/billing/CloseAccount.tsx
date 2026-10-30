@@ -74,9 +74,15 @@ export default function CloseAccount({
 
           <form onSubmit={onSubmit} className="mt-4 space-y-3">
             <input type="hidden" name="orgId" value={orgId} />
-            <input type="hidden" name="expected" value={orgSlug} />
+            {/* The label is styled in capitals, so the slug is held out of
+                that transform. It used to render "TYPE MDC TO CONFIRM" for a
+                workspace called mdc, and typing what it said was rejected. */}
             <label className="block text-xs uppercase tracking-widest font-bold text-red-900">
-              Type {orgSlug} to confirm
+              Type{" "}
+              <span className="normal-case font-mono tracking-normal">
+                {orgSlug}
+              </span>{" "}
+              to confirm
             </label>
             <input
               type="text"
@@ -89,7 +95,10 @@ export default function CloseAccount({
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="submit"
-                disabled={pending || typed !== orgSlug}
+                disabled={
+                  pending ||
+                  typed.trim().toLowerCase() !== orgSlug.toLowerCase()
+                }
                 className="inline-flex items-center gap-2 bg-red-700 hover:bg-red-800 disabled:opacity-40 text-white px-5 py-2.5 rounded-md font-bold text-sm transition"
               >
                 <Trash2 size={14} />

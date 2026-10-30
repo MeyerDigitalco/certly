@@ -36,16 +36,8 @@ export async function closeAccount(
 ): Promise<CloseResult | void> {
   const orgId = String(formData.get("orgId") ?? "");
   const confirmation = String(formData.get("confirm") ?? "").trim();
-  const expected = String(formData.get("expected") ?? "").trim();
 
   if (!orgId) return { ok: false, error: "Missing workspace." };
-
-  if (!expected || confirmation !== expected) {
-    return {
-      ok: false,
-      error: `Type ${expected} exactly to confirm. Nothing has been deleted.`,
-    };
-  }
 
   const supabase: any = await createClient();
   const {
@@ -64,6 +56,27 @@ export async function closeAccount(
     return {
       ok: false,
       error: "Only the owner of this workspace can close it.",
+    };
+  }
+
+  // Check the typed name against the workspace's real slug, read here rather
+  // than against a value the form supplied. The point of making someone type
+  // the name is that they read the name of the thing they are destroying; a
+  // form field the caller controls proves nothing. Compared without case or
+  // surrounding space, because the label is styled in capitals and nobody
+  // should lose a confirmation to that.
+  const { data: org } = await supabase
+    .from("organisations")
+    .select("slug")
+    .eq("id", orgId)
+    .maybeSingle();
+
+  if (!org?.slug) return { ok: false, error: "That workspace no longer exists." };
+
+  if (confirmation.toLowerCase() !== String(org.slug).toLowerCase()) {
+    return {
+      ok: false,
+      error: `Type ${org.slug} to confirm. Nothing has been deleted.`,
     };
   }
 
