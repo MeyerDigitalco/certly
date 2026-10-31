@@ -14,17 +14,29 @@ import {
   inviteLink,
   normaliseInviteEmail,
 } from "@/lib/invitations";
+import { buildInvitation } from "@/lib/email/invitation";
+import { sendEmail } from "@/lib/email/send";
 
+/** Matches the database default on invitations.expires_at. */
+const INVITE_DAYS = 14;
 
+/**
+ * Whether the invited person was emailed.
+ *
+ * Reported honestly rather than assumed, because the link on screen is the
+ * fallback and the owner can only decide whether to use it if they are told
+ * which happened.
+ */
+export type InviteDelivery = "sent" | "skipped" | "failed";
 
 export type InviteResult =
-  | { ok: true; email: string; link: string }
+  | { ok: true; email: string; link: string; delivery: InviteDelivery }
   | { ok: false; error: string };
 
 export type SimpleResult = { ok: true } | { ok: false; error: string };
 
 async function assertOwner(orgId: string): Promise<
-  { error: string } | { userId: string }
+  { error: string } | { userId: string; userEmail: string }
 > {
   if (!orgId) return { error: "Missing workspace." };
   const supabase: any = await createClient();
@@ -41,7 +53,7 @@ async function assertOwner(orgId: string): Promise<
   if (!mem || mem.role !== "owner") {
     return { error: "Only the owner can invite people to this workspace." };
   }
-  return { userId: user.id };
+  return { userId: user.id, userEmail: String(user.email ?? "") };
 }
 
 
@@ -131,13 +143,48 @@ export async function inviteMember(
 
   const { data: org } = await admin
     .from("organisations")
-    .select("slug")
+    .select("slug, name")
     .eq("id", orgId)
     .maybeSingle();
   if (org?.slug) revalidatePath(`/${org.slug}/hr/settings`);
 
   const origin = await publicOrigin();
-  return { ok: true, email, link: inviteLink(origin, token) };
+  const link = inviteLink(origin, token);
+
+  // The invitation already exists at this point. Email is an attempt, not a
+  // condition: a sending failure must not leave a usable invitation reported
+  // as a failure, because the owner would then invite the same person again.
+  const message = buildInvitation({
+    orgName: org?.name ?? "this workspace",
+    invitedBy: guard.userEmail || "The owner",
+    role,
+    email,
+    link,
+    days: INVITE_DAYS,
+  });
+
+  const outcome = await sendEmail({
+    to: email,
+    subject: message.subject,
+    html: message.html,
+    text: message.text,
+    replyTo: guard.userEmail || undefined,
+  });
+
+  if (outcome.status === "failed") {
+    console.error(`invite.email failed: ${outcome.reason}`);
+  } else if (outcome.status === "skipped") {
+    console.info(`invite.email skipped: ${outcome.reason}`);
+  }
+
+  const delivery: InviteDelivery =
+    outcome.status === "sent"
+      ? "sent"
+      : outcome.status === "failed"
+        ? "failed"
+        : "skipped";
+
+  return { ok: true, email, link, delivery };
 }
 
 export async function revokeInvitation(

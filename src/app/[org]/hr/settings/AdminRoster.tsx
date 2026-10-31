@@ -40,7 +40,11 @@ export default function AdminRoster({
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "viewer">("admin");
   const [tempPw, setTempPw] = useState<{ email: string; password: string | null } | null>(null);
-  const [invited, setInvited] = useState<{ email: string; link: string } | null>(null);
+  const [invited, setInvited] = useState<{
+    email: string;
+    link: string;
+    delivery: "sent" | "skipped" | "failed";
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -60,7 +64,7 @@ export default function AdminRoster({
     startTransition(async () => {
       const r = await inviteMember(fd);
       if (!r.ok) { flash(setError, r.error); return; }
-      setInvited({ email: r.email, link: r.link });
+      setInvited({ email: r.email, link: r.link, delivery: r.delivery });
       setNewEmail("");
       router.refresh();
     });
@@ -189,11 +193,19 @@ export default function AdminRoster({
       {invited ? (
         <div className="bg-sky-50 border border-sky-300 rounded-xl p-4 space-y-3">
           <p className="text-sm text-sky-900">
-            <strong>Invitation created for {invited.email}.</strong> Send them
-            this link. They join only once they sign in as that address and
-            accept, so nobody gets access to your register without agreeing to
-            it. The link works for fourteen days and this is the only time it
-            is shown.
+            <strong>
+              {invited.delivery === "sent"
+                ? `Invitation emailed to ${invited.email}.`
+                : `Invitation created for ${invited.email}.`}
+            </strong>{" "}
+            {invited.delivery === "sent"
+              ? "Send them this link as well if the email does not arrive within a few minutes."
+              : invited.delivery === "failed"
+                ? "The email could not be sent, so send them this link yourself."
+                : "This deployment cannot send email, so send them this link yourself."}{" "}
+            They join only once they sign in as that address and accept, so
+            nobody gets access to your register without agreeing to it. The
+            link works for fourteen days and this is the only time it is shown.
           </p>
           <div className="flex items-center gap-2 bg-white border border-sky-300 rounded-md px-3 py-2">
             <span className="font-mono text-xs flex-1 select-all break-all">{invited.link}</span>
