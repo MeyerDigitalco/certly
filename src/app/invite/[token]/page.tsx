@@ -1,11 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashInviteToken, inviteState } from "@/lib/invitations";
+import { findAuthUserByEmail } from "@/lib/auth-users";
 import InviteButtons from "./InviteButtons";
+import CreateAccountForm from "./CreateAccountForm";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export const metadata = {
   title: "Invitation",
@@ -52,6 +55,15 @@ export default async function InvitePage({
     if (org?.name) orgName = org.name;
   }
 
+  // Which screen a signed out visitor gets turns on whether the invited
+  // address already has a Certly account. Somebody new needs to choose a
+  // password; somebody who already has one must sign in, because a forwarded
+  // link must never be a way to set a password on an existing account.
+  const hasAccount =
+    state === "valid" && !user
+      ? (await findAuthUserByEmail(admin, invite.email)) !== null
+      : false;
+
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
       <div className="w-full max-w-md">
@@ -61,15 +73,29 @@ export default async function InvitePage({
         </Link>
 
         <div className="mt-6 bg-white border border-[var(--brand-line)] rounded-2xl p-8">
-          {state === "valid" && !user ? (
+          {state === "valid" && !user && !hasAccount ? (
             <>
               <h1 className="text-2xl font-black">
                 You have been invited to {orgName}
               </h1>
               <p className="mt-2 text-sm text-[var(--brand-slate)]">
-                Sign in as {invite.email} to accept. If you do not have a Certly
-                password yet, use Forgot your password on the sign in page to
-                set one.
+                You have been invited as a {invite.role}, which means{" "}
+                {ROLE_DESCRIPTION[invite.role] ?? "access to this workspace"}.
+                Choose a password to create your Certly account, then you will
+                be asked whether you want to join.
+              </p>
+              <div className="mt-6">
+                <CreateAccountForm token={token} email={invite.email} />
+              </div>
+            </>
+          ) : state === "valid" && !user ? (
+            <>
+              <h1 className="text-2xl font-black">
+                You have been invited to {orgName}
+              </h1>
+              <p className="mt-2 text-sm text-[var(--brand-slate)]">
+                Sign in as {invite.email} to accept. If you have forgotten your
+                password, use Forgot your password on the sign in page.
               </p>
               <Link
                 href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}

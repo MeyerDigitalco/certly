@@ -52,6 +52,8 @@ const CROSS_ORG_BY_DESIGN: Record<string, string> = {
     "Same token lookup, and it verifies the signed-in address matches before writing.",
   "app/invite/[token]/page.tsx::InvitePage":
     "Renders an invitation found by token hash, before the visitor belongs to any workspace.",
+  "app/invite/[token]/create-account.ts::createInvitedAccount":
+    "Same token lookup, for somebody who has no account yet and so belongs to no workspace. It creates an account for the invited address only, and refuses if that address already has one.",
 };
 
 /**
