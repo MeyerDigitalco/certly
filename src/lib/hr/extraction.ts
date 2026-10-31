@@ -4,6 +4,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { assertWritable } from "@/lib/billing/access";
+import { envOr } from "@/lib/env-shape";
 import type { IdType, TrainingType } from "@/lib/types/database";
 import { validateSaId } from "@/lib/validation/sa-id";
 import { isIdType } from "@/lib/validation/identification";
@@ -300,7 +301,7 @@ export async function extractCertificate(
         "anthropic-version": API_VERSION,
       },
       body: JSON.stringify({
-        model: process.env.CERTLY_EXTRACTION_MODEL ?? "claude-sonnet-5",
+        model: envOr("CERTLY_EXTRACTION_MODEL", "claude-sonnet-5"),
         max_tokens: 1500,
         tools: [TOOL],
         tool_choice: { type: "tool", name: TOOL.name },

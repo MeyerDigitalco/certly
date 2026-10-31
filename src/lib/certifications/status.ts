@@ -1,3 +1,4 @@
+import { envOr } from "@/lib/env-shape";
 import type { CertStatus } from "@/lib/types/database";
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/;
@@ -48,7 +49,7 @@ export function todayIso(timeZone = "Africa/Johannesburg"): string {
  */
 export function certStatus(
   expiryIso: string | null,
-  dueSoonDays = Number(process.env.DEFAULT_DUE_SOON_DAYS ?? 30),
+  dueSoonDays = Number(envOr("DEFAULT_DUE_SOON_DAYS", "30")),
   today: string = todayIso(),
 ): { status: CertStatus; daysLeft: number | null } {
   if (!expiryIso) return { status: "no_expiry", daysLeft: null };

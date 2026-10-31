@@ -33,3 +33,19 @@ export function envShape(name: string): string {
     ? `${trimmed.length} characters (plus ${padding} of whitespace)`
     : `${trimmed.length} characters`;
 }
+
+/**
+ * Read a variable, treating a blank value as if it were not set.
+ *
+ * `process.env.X ?? fallback` only catches undefined, so a variable present
+ * in a hosting dashboard with nothing in it returns an empty string and the
+ * fallback never runs. That has now happened four times in this codebase,
+ * most visibly as a weekly digest whose links came out as "/mdc/hr/renewals"
+ * with no domain, because the configured origin was blank rather than
+ * missing.
+ */
+export function envOr(name: string, fallback: string): string {
+  const raw = process.env[name];
+  const trimmed = (raw ?? "").trim();
+  return trimmed || fallback;
+}

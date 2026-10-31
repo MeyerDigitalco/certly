@@ -12,7 +12,8 @@ import { buildDigest, digestIsWorthSending } from "@/lib/email/digest";
 import { sendEmail, emailIsConfigured } from "@/lib/email/send";
 import { accessFor, isPlan, isSubscriptionStatus } from "@/lib/billing/plan";
 import { checkCronAuth } from "@/lib/cron-auth";
-import { describeEnv } from "@/lib/env-shape";
+import { describeEnv, envOr } from "@/lib/env-shape";
+import { SITE } from "@/lib/site";
 
 
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const origin = process.env.CERTLY_PUBLIC_ORIGIN ?? "https://certly.co.za";
+  const origin = envOr("CERTLY_PUBLIC_ORIGIN", SITE.domain);
   const admin: any = createAdminClient();
 
   const { data: orgs } = await admin

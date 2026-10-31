@@ -127,3 +127,54 @@ describe("buildDigest", () => {
     expect(expiredOnly.html).not.toContain("Due within seven days");
   });
 });
+
+describe("counting days in the digest", () => {
+  const row = (days: number) =>
+    ({
+      kind: "certification",
+      surname: "Mogopa",
+      names: "Mopako Frans",
+      label: "HIRA",
+      days_left: days,
+      site: "",
+    }) as never;
+
+  function textFor(days: number, expired: boolean): string {
+    return buildDigest({
+      orgName: "MDC",
+      slug: "mdc",
+      origin: "https://certly.co.za",
+      buckets: {
+        expired: expired ? [row(days)] : [],
+        dueSeven: expired ? [] : [row(days)],
+        dueThirty: [],
+        horizonDays: 30,
+      },
+    }).text;
+  }
+
+  it("says day, not days, when there is one of them", () => {
+    expect(textFor(-1, true)).toContain("1 day over");
+    expect(textFor(1, false)).toContain("- 1 day");
+  });
+
+  it("still says days for anything else", () => {
+    expect(textFor(-4, true)).toContain("4 days over");
+    expect(textFor(6, false)).toContain("6 days");
+  });
+
+  it("says today rather than 0 days", () => {
+    expect(textFor(0, false)).toContain("today");
+  });
+
+  it("builds an absolute link, because a relative one is dead in an inbox", () => {
+    const html = buildDigest({
+      orgName: "MDC",
+      slug: "mdc",
+      origin: "https://certly.co.za",
+      buckets: { expired: [], dueSeven: [row(3)], dueThirty: [], horizonDays: 30 },
+    }).html;
+    expect(html).toContain("https://certly.co.za/mdc/hr/renewals");
+    expect(html).not.toContain('href="/mdc');
+  });
+});
