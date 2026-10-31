@@ -52,11 +52,13 @@ export default async function OrgLayout({
               {ctx.role}
             </span>
             <span>
-              {ctx.org.plan === "trial"
-                ? billing.daysLeft !== null
-                  ? `Trial, ${billing.daysLeft} days left`
-                  : "Trial"
-                : "Subscribed"}
+              {billing.state === "exempt"
+                ? "Internal, not billed"
+                : ctx.org.plan === "trial"
+                  ? billing.daysLeft !== null
+                    ? `Trial, ${billing.daysLeft} days left`
+                    : "Trial"
+                  : "Subscribed"}
               {" · "}
               certly.co.za/{ctx.org.slug}
             </span>

@@ -105,13 +105,16 @@ export type AccessState =
   | "trial_expired"
   | "subscribed"
   | "payment_failed"
-  | "cancelled";
+  | "cancelled"
+  | "exempt";
 
 export interface AccessInput {
   plan: Plan;
   subscriptionStatus: SubscriptionStatus;
   trialEndsAt: string;
   currentPeriodEnd: string | null;
+  /** Never billed and never gated: our own workspaces, and comped accounts. */
+  billingExempt?: boolean;
 }
 
 export interface Access {
@@ -140,6 +143,13 @@ function daysUntil(iso: string | null, now: Date): number | null {
  */
 export function accessFor(input: AccessInput, now: Date = new Date()): Access {
   const periodDaysLeft = daysUntil(input.currentPeriodEnd, now);
+
+  // Checked before anything else, including an active subscription, so an
+  // exempt workspace can never be gated by a trial that quietly ran out or
+  // by a debit order that was never set up.
+  if (input.billingExempt) {
+    return { state: "exempt", canWrite: true, daysLeft: null, reason: "" };
+  }
 
   if (input.subscriptionStatus === "active") {
     return {

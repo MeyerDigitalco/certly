@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
 import { requireSuperadmin } from "@/lib/admin/access";
 import { getAdminMetrics, type WorkspaceRow } from "@/lib/admin/metrics";
+import ExemptToggle from "./ExemptToggle";
 
 export const metadata = {
   title: "Operator console",
@@ -73,6 +74,13 @@ export default async function AdminPage() {
             <Stat label="Paying" value={f.paying} note={`${rands(m.mrrRands)} a month at today's headcounts`} good />
             <Stat label="Cancelled" value={f.cancelled} note="Subscribed, then stopped" warn={f.cancelled > 0} />
           </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat
+              label="Not billed"
+              value={f.exempt}
+              note="Ours and comped. Left out of every figure above."
+            />
+          </div>
         </section>
 
         <section>
@@ -93,6 +101,7 @@ export default async function AdminPage() {
                   <th className="px-4 py-2.5 font-bold">Workspace</th>
                   <th className="px-4 py-2.5 font-bold">Owner</th>
                   <th className="px-4 py-2.5 font-bold">State</th>
+                  <th className="px-4 py-2.5 font-bold">Billing</th>
                   <th className="px-4 py-2.5 font-bold text-right">Team</th>
                   <th className="px-4 py-2.5 font-bold text-right">People</th>
                   <th className="px-4 py-2.5 font-bold text-right">Certs</th>
@@ -132,8 +141,9 @@ export default async function AdminPage() {
 
 function Row({ w, now }: { w: WorkspaceRow; now: string }) {
   const idle = sinceDays(w.lastActivity);
-  const state =
-    w.subscriptionStatus === "active"
+  const state = w.billingExempt
+    ? { label: "Not billed", tone: "bg-[var(--brand-cream)] text-[var(--brand-ink)]" }
+    : w.subscriptionStatus === "active"
       ? { label: "Paying", tone: "bg-emerald-50 text-emerald-800" }
       : w.subscriptionStatus === "cancelled"
         ? { label: "Cancelled", tone: "bg-red-50 text-red-700" }
@@ -156,6 +166,9 @@ function Row({ w, now }: { w: WorkspaceRow; now: string }) {
         <span className={`inline-block rounded-sm px-2 py-0.5 text-[11px] font-bold ${state.tone}`}>
           {state.label}
         </span>
+      </td>
+      <td className="px-4 py-2.5">
+        <ExemptToggle orgId={w.id} exempt={w.billingExempt} />
       </td>
       <td className="px-4 py-2.5 text-right tabular-nums">{w.members}</td>
       <td className="px-4 py-2.5 text-right tabular-nums">{w.people}</td>

@@ -26,6 +26,7 @@ export interface WorkspaceRow {
   subscriptionStatus: string;
   trialEndsAt: string;
   createdAt: string;
+  billingExempt: boolean;
   owner: string;
   members: number;
   people: number;
@@ -41,6 +42,7 @@ export interface Funnel {
   trialsLapsedUnpaid: number;
   paying: number;
   cancelled: number;
+  exempt: number;
 }
 
 export interface AdminMetrics {
@@ -73,7 +75,9 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
     await Promise.all([
       admin
         .from("organisations")
-        .select("id, name, slug, plan, subscription_status, trial_ends_at, created_at")
+        .select(
+          "id, name, slug, plan, subscription_status, trial_ends_at, created_at, billing_exempt",
+        )
         .order("created_at", { ascending: false }),
       admin.from("org_members").select("organisation_id, user_id, role"),
       // Only the keys needed to count. Selecting * here would pull every
@@ -139,6 +143,7 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
     subscriptionStatus: String(o.subscription_status),
     trialEndsAt: String(o.trial_ends_at),
     createdAt: String(o.created_at),
+    billingExempt: Boolean(o.billing_exempt),
     owner: ownerByOrg.get(String(o.id)) ?? "no owner",
     members: memberCount.get(String(o.id)) ?? 0,
     people: peopleCount.get(String(o.id)) ?? 0,
@@ -146,16 +151,25 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
     lastActivity: lastActivity.get(String(o.id)) ?? null,
   }));
 
-  const paying = workspaces.filter((w) => w.subscriptionStatus === "active");
-  const cancelled = workspaces.filter(
+  // Our own and comped workspaces are not prospects, not customers and not
+  // lost trials. Counting them anywhere else makes every conversion number
+  // wrong, which is the whole reason to look at this page.
+  const exempt = workspaces.filter((w) => w.billingExempt);
+  const commercial = workspaces.filter((w) => !w.billingExempt);
+
+  const paying = commercial.filter((w) => w.subscriptionStatus === "active");
+  const cancelled = commercial.filter(
     (w) => w.subscriptionStatus === "cancelled",
   );
-  const trialsLive = workspaces.filter(
+  const trialsLive = commercial.filter(
     (w) => w.subscriptionStatus !== "active" && w.trialEndsAt > now,
   );
   // The number that matters most: they took the trial and did not convert.
-  const trialsLapsedUnpaid = workspaces.filter(
-    (w) => w.subscriptionStatus !== "active" && w.trialEndsAt <= now,
+  const trialsLapsedUnpaid = commercial.filter(
+    (w) =>
+      w.subscriptionStatus !== "active" &&
+      w.subscriptionStatus !== "cancelled" &&
+      w.trialEndsAt <= now,
   );
 
   const seven = daysAgo(7);
@@ -171,6 +185,7 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
       trialsLapsedUnpaid: trialsLapsedUnpaid.length,
       paying: paying.length,
       cancelled: cancelled.length,
+      exempt: exempt.length,
     },
     newAccounts7: users.filter((u) => u.created_at > seven).length,
     newWorkspaces7: workspaces.filter((w) => w.createdAt > seven).length,

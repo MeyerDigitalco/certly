@@ -260,3 +260,43 @@ describe("basePriceCents", () => {
     );
   });
 });
+
+describe("a workspace that is never billed", () => {
+  const base = {
+    plan: "trial" as const,
+    subscriptionStatus: "none" as const,
+    trialEndsAt: "2020-01-01T00:00:00Z",
+    currentPeriodEnd: null,
+  };
+
+  it("stays writable long after the trial would have ended", () => {
+    const access = accessFor({ ...base, billingExempt: true });
+    expect(access.state).toBe("exempt");
+    expect(access.canWrite).toBe(true);
+    expect(access.reason).toBe("");
+  });
+
+  it("is checked before a cancelled or failed subscription locks it", () => {
+    for (const status of ["cancelled", "past_due"] as const) {
+      const access = accessFor({
+        ...base,
+        subscriptionStatus: status,
+        currentPeriodEnd: "2020-01-01T00:00:00Z",
+        billingExempt: true,
+      });
+      expect(access.state).toBe("exempt");
+      expect(access.canWrite).toBe(true);
+    }
+  });
+
+  it("shows no countdown, because there is nothing to count down to", () => {
+    expect(accessFor({ ...base, billingExempt: true }).daysLeft).toBeNull();
+  });
+
+  it("changes nothing when the flag is absent or false", () => {
+    expect(accessFor(base).state).toBe("trial_expired");
+    expect(accessFor({ ...base, billingExempt: false }).state).toBe(
+      "trial_expired",
+    );
+  });
+});

@@ -194,7 +194,7 @@ export default async function BillingPage({
         </header>
       </section>
 
-      {state.state === "subscribed" ? null : checkout ? (
+      {state.state === "subscribed" || state.state === "exempt" ? null : checkout ? (
         <section className="bg-white border border-[var(--brand-line)] rounded-2xl p-6">
           <PayFastForm
             action={checkout.action}
@@ -243,6 +243,24 @@ function Status({
   slug: string;
   periodEnd: string | null;
 }) {
+  // An internal or comped workspace is never billed, so it is shown no
+  // countdown, no price and no subscribe button. Those would be asking it for
+  // money it is exempt from.
+  if (state.state === "exempt") {
+    return (
+      <section className="bg-[var(--brand-cream)] border border-[var(--brand-line)] rounded-2xl p-6 flex items-start gap-3">
+        <ShieldCheck size={20} className="text-[var(--brand-slate)] mt-0.5 shrink-0" />
+        <div>
+          <p className="font-black">Internal workspace</p>
+          <p className="text-sm text-[var(--brand-slate)] mt-1">
+            This workspace is not billed and does not expire. Everything stays
+            writable with no subscription.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   if (state.state === "subscribed") {
     return (
       <section className="bg-emerald-50 border border-emerald-300 rounded-2xl p-6 flex items-start gap-3">

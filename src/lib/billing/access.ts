@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from "@/lib/supabase/server";
 import {
   accessFor,
@@ -8,7 +9,7 @@ import {
   type Quote,
 } from "./plan";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 export interface BillingState extends Access {
   seats: number;
@@ -28,7 +29,7 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
   const { data: org } = await supabase
     .from("organisations")
     .select(
-      "plan, subscription_status, trial_ends_at, current_period_end",
+      "plan, subscription_status, trial_ends_at, current_period_end, billing_exempt",
     )
     .eq("id", orgId)
     .maybeSingle();
@@ -48,6 +49,7 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
       : "none",
     trialEndsAt: org?.trial_ends_at ?? "",
     currentPeriodEnd: org?.current_period_end ?? null,
+    billingExempt: Boolean(org?.billing_exempt),
   });
 
   return { ...access, seats, quote: quoteFor(seats) };
