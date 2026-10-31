@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Download,
   FileBadge,
+  MessageSquarePlus,
   MinusCircle,
   Scale,
   ShieldCheck,
@@ -268,6 +269,22 @@ export default function OverviewView({
           </ul>
         </div>
       </section>
+
+      <aside className="bg-white border border-[var(--brand-line)] rounded-2xl px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="font-bold">Something here slower than it should be?</p>
+          <p className="text-sm text-[var(--brand-slate)] mt-0.5">
+            Tell the person who builds it. Every role can, viewers included.
+          </p>
+        </div>
+        <Link
+          href={`/${slug}/hr/suggest`}
+          className="inline-flex items-center gap-2 border border-[var(--brand-ink)] hover:bg-[var(--brand-ink)] hover:text-white px-4 py-2 rounded-md font-bold text-sm transition shrink-0"
+        >
+          <MessageSquarePlus size={14} />
+          Suggest an improvement
+        </Link>
+      </aside>
     </div>
   );
 }

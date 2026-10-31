@@ -33,6 +33,7 @@ const TENANT_TABLES = [
   "training_plans",
   "compliance_snapshots",
   "rate_limits",
+  "suggestions",
 ];
 
 const KEYED_BY_OWN_ID = ["organisations"];

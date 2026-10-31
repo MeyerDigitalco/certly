@@ -6,7 +6,7 @@ import LegalShell from "@/components/LegalShell";
 export const metadata: Metadata = {
   title: "Refund and cancellation policy",
   description:
-    "How Certly subscriptions are billed, how to cancel, and when a refund is given.",
+    "How Certly subscriptions are billed, how to cancel, and why payments already taken are not refunded.",
   alternates: { canonical: `${SITE.domain}/refunds` },
   robots: { index: true, follow: true },
 };
@@ -80,11 +80,23 @@ export default function RefundsPage() {
 
       <h3>5. Refunds</h3>
       <p>
-        Because the month is billed in advance and you keep the service for
-        the whole of it, a part month is not refunded. Cancelling on day 20
-        gives you the remaining 10 days, not 10 days back.
+        <strong>
+          Payments are not refunded once they have been taken.
+        </strong>{" "}
+        The month is billed in advance and you keep full use of the service
+        for the whole of it, so cancelling on day 20 gives you the remaining
+        10 days rather than 10 days back. There is no part month refund and no
+        change of mind refund.
       </p>
-      <p>We do refund in full, on request, where:</p>
+      <p>
+        This is why the trial exists and why it asks for no card. You get 14
+        days with your own crew on the register before you are asked to pay
+        anything, which is the point at which to decide.
+      </p>
+      <p>
+        A charge that should never have been taken is a billing error, not a
+        refund, and we correct those in full. That means:
+      </p>
       <ul>
         <li>
           you were charged after cancelling, or charged more than once for the
@@ -95,31 +107,24 @@ export default function RefundsPage() {
           register on the billing date;
         </li>
         <li>
-          Certly was unavailable for more than 48 consecutive hours during a
-          paid month through our fault;
-        </li>
-        <li>
           you were charged in error for any other reason attributable to us.
         </li>
       </ul>
       <p>
-        We will also refund the most recent month, no questions asked, if you
-        subscribe and then tell us within 7 days that it is not right for your
-        business. This is a goodwill term, it is not a statutory cooling off
-        right, and it applies once per workspace.
+        We correct these whether or not you ask, as soon as we find them.
       </p>
 
-      <h3>6. How to ask for a refund</h3>
+      <h3>6. How to report a charge you think is wrong</h3>
       <p>
         Email <a href={`mailto:${SITE.email}`}>{SITE.email}</a> or WhatsApp us
         on 082 097 6115, with the workspace name and the date of the charge.
-        We reply within two business days. Approved refunds are paid back to
-        the account the debit order came from, normally within 10 business
-        days, depending on PayFast and your bank.
+        We reply within two business days. Corrections are paid back to the
+        account the debit order came from, normally within 10 business days,
+        depending on PayFast and your bank.
       </p>
       <p>
-        If you are not satisfied with how we have handled a refund, you can
-        take it up with PayFast through their dispute process, or with your own
+        If you are not satisfied with how we have handled a charge, you can take
+        it up with PayFast through their dispute process, or with your own
         bank.
       </p>
 
