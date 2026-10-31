@@ -4,7 +4,7 @@ export const SITE = {
   legalEntity: "Meyer Digital Co.",
   email: "hello@certly.co.za",
   informationOfficer: "Pieter Meyer",
-  informationOfficerEmail: "privacy@certly.co.za",
+  informationOfficerEmail: "hello@certly.co.za",
   whatsapp: "27820976115",
   addressLine: "South Africa",
   hostingRegion: "Ireland (eu-west-1)",

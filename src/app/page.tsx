@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { CertlyMark } from "@/components/CertlyMark";
 import { GateBoard, SafetyFilePack, ReportBoard, PriceCalculator } from "./LandingClient";
@@ -64,9 +65,11 @@ export default function Home() {
               who lapses <b>before the gate does</b>.
             </p>
             <p className="lede" style={{ marginTop: 14 }}>
-              The same register drafts your safety file, builds the monthly HR pack
-              your client asks for, and fills in the employment equity and training
-              reports the law asks for. Drag the date. Watch your register break.
+              That same register writes the reports you currently rebuild in a
+              spreadsheet: the monthly pack head office asks for, the safety
+              file, the employment equity and training submissions the law asks
+              for. <b>One source instead of eleven workbooks</b>, none of which
+              agree. Drag the date. Watch your register break.
             </p>
             <div className="hero-actions">
               <Link className="btn btn-lg" href="/signup">
@@ -171,7 +174,7 @@ export default function Home() {
 
       <section className="pad band" id="reports">
         <div className="hd">
-          <p className="kicker kicker-bare">The pack that is due again next month</p>
+          <p className="kicker kicker-bare">The spreadsheet you rebuild every month</p>
           <h2>
             Monthly reports,
             <br />
@@ -182,10 +185,16 @@ export default function Home() {
           <p>
             Head office wants staff movement, turnover, absenteeism and the labour
             plan every month. The Department of Employment and Labour wants your
-            EEA2 by January. Your SETA wants the training report by April. Most
-            contractors rebuild all of it in a spreadsheet from memory. Certly builds
-            it from the register you are already keeping, so the numbers in the pack
-            are the numbers on the ground.
+            EEA2 by January. Your SETA wants the training report by April. Almost
+            every contractor builds all of it in Excel, by hand, from a file that
+            somebody else last edited.
+          </p>
+          <p style={{ marginTop: 12 }}>
+            That is where the hours go, and it is where the mistakes come from: a
+            row typed twice, a leaver still counted, a tab somebody renamed. Certly
+            builds the same reports off the register you are already keeping, so the
+            numbers in the pack are the numbers on the ground. You still get the
+            workbook, you just stop writing it.
           </p>
         </div>
 
