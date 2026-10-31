@@ -60,9 +60,11 @@ export default function OverviewView({
         lede={
           o.headcount === 0
             ? "Load your people and their certificates and this page starts answering for you."
-            : `${o.headcount} people in service across ${o.gate.sites.length} ${o.gate.sites.length === 1 ? "site" : "sites"}. ${
+            : `${o.headcount} ${o.headcount === 1 ? "person" : "people"} in service across ${o.gate.sites.length} ${o.gate.sites.length === 1 ? "site" : "sites"}. ${
                 o.gate.cannotPass === 0
-                  ? `Everyone can pass a ${profile.gateNoun} check.`
+                  ? o.headcount === 1
+                    ? `They can pass a ${profile.gateNoun} check.`
+                    : `Everyone can pass a ${profile.gateNoun} check.`
                   : `${o.gate.cannotPass} cannot pass a ${profile.gateNoun} check right now.`
               }`
         }
