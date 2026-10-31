@@ -8,7 +8,7 @@ export const SITE = {
   whatsapp: "27820976115",
   addressLine: "South Africa",
   hostingRegion: "Ireland (eu-west-1)",
-  effectiveDate: "1 September 2026",
+  effectiveDate: "2 November 2026",
   analyticsScript: "/_vercel/insights/script.js",
   analyticsDomain: "",
 } as const;

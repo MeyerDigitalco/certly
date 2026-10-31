@@ -72,7 +72,7 @@ export default function TermsPage() {
         per month for each additional person on the register. Prices are in South
         African rand. {SITE.legalEntity} is not registered for VAT, so no VAT is
         charged and none is shown. Fees are billed monthly in advance by debit
-        order through PayFast and are not refundable for a part month.
+        order through PayFast and are not refundable once taken.
       </p>
       <p>
         Full billing, cancellation and refund terms are in our{" "}
@@ -99,7 +99,23 @@ export default function TermsPage() {
         the standard plan.
       </p>
 
-      <h3>9. Liability</h3>
+      <h3>9. No warranty</h3>
+      <p>
+        Certly is provided as it is and as it is available. We do not warrant that
+        it is free of errors, that it will meet any particular requirement of
+        yours, that the records it holds are accurate, or that a pack it assembles
+        will be accepted by any client, mine, regulator or SETA. Those records are
+        the ones you loaded, and the judgement about whether a pack is complete is
+        your appointed person&rsquo;s, not ours.
+      </p>
+      <p>
+        To the fullest extent the law allows, all warranties, conditions and terms
+        implied by statute or common law are excluded. Nothing in this section
+        excludes anything that cannot lawfully be excluded, including under the
+        Consumer Protection Act 68 of 2008 where it applies to you.
+      </p>
+
+      <h3>10. Liability</h3>
       <p>
         To the fullest extent the law allows, our total liability to you arising out
         of or in connection with this agreement, whether in contract, delict or
@@ -114,7 +130,42 @@ export default function TermsPage() {
         68 of 2008 where it applies to you.
       </p>
 
-      <h3>10. Suspension and cancellation</h3>
+      <h3>11. Your indemnity</h3>
+      <p>
+        You decide whose personal information goes into your workspace and on what
+        lawful basis. Under POPIA you are the responsible party for it and we are
+        your operator, which means the duty to have a basis for holding it, to tell
+        your people what you hold, and to keep your workspace&rsquo;s access
+        correct, is yours.
+      </p>
+      <p>
+        You therefore indemnify us against any claim, penalty, fine or reasonable
+        cost brought by a third party, including one of your employees, a client or
+        the Information Regulator, to the extent it arises from:
+      </p>
+      <ul>
+        <li>
+          personal information you loaded without a lawful basis, or kept after you
+          no longer had one;
+        </li>
+        <li>
+          access you granted, or failed to withdraw, to someone in your workspace;
+        </li>
+        <li>
+          a document or report you submitted to a client, mine, regulator or SETA
+          that was inaccurate or incomplete;
+        </li>
+        <li>your breach of the acceptable use section above.</li>
+      </ul>
+      <p>
+        This does not apply to the extent the claim arises from our own breach of
+        these terms, our negligence, or our failure to keep your workspace secure.
+        We will tell you promptly about any claim we want to rely on this for, let
+        you take over its defence if you want to, and not settle it without asking
+        you first.
+      </p>
+
+      <h3>12. Suspension and cancellation</h3>
       <p>
         You may cancel at any time from the Billing screen in your workspace. No
         further debit order is taken, you keep full use until the end of the month
@@ -128,21 +179,21 @@ export default function TermsPage() {
         <Link href="/refunds">refund and cancellation policy</Link> for the detail.
       </p>
 
-      <h3>11. Getting your data out</h3>
+      <h3>13. Getting your data out</h3>
       <p>
         You can export your register and download your certificate files at any time
         while the workspace is active. After cancellation we keep the workspace
         recoverable for 30 days, then delete it. Export before you cancel.
       </p>
 
-      <h3>12. Changes to these terms</h3>
+      <h3>14. Changes to these terms</h3>
       <p>
         We may update these terms. Material changes will be notified by email to
         account holders at least 30 days before they take effect. Continuing to use
         Certly after that date means you accept the updated terms.
       </p>
 
-      <h3>13. Governing law</h3>
+      <h3>15. Governing law</h3>
       <p>
         These terms are governed by the law of the Republic of South Africa, and the
         courts of South Africa have jurisdiction. Notices to us go to {SITE.email}.
