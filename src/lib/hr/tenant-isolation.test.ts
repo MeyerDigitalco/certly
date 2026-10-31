@@ -70,6 +70,30 @@ const ALL_WORKSPACES_BY_DESIGN: Record<string, string> = {
     "Seat reconciliation iterates every active subscription. Gated on CRON_SECRET; the seat count filters on organisation_id.",
 };
 
+/**
+ * Reads that sweep every workspace for the operator console.
+ *
+ * Kept apart from the cron allowlist above because the gate is different: a
+ * named person rather than a shared secret. The test below asserts that gate
+ * separately, and asserts that nothing identifying an employee is selected,
+ * which is what makes a cross-workspace count acceptable at all.
+ */
+const SUPERADMIN_BY_DESIGN: Record<string, string> = {
+  "lib/admin/metrics.ts::getAdminMetrics":
+    "Counts across every workspace by definition. Gated on CERTLY_SUPERADMIN_EMAILS, which fails closed, and selects only keys and dates.",
+};
+
+/** Columns that would turn a count into a register read. */
+const IDENTIFYING_COLUMNS = [
+  "surname",
+  "names",
+  "id_number",
+  "id_file_path",
+  "file_path",
+  "passport",
+  "email",
+];
+
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry === "node_modules" || entry.startsWith(".")) continue;
@@ -180,6 +204,7 @@ describe("tenant isolation", () => {
   it("filters every read, update and delete by organisation_id", () => {
     const offenders = HITS.filter((hit) => {
       if (CROSS_ORG_BY_DESIGN[hit.key]) return false;
+      if (SUPERADMIN_BY_DESIGN[hit.key]) return false;
       if (/\.(insert|upsert)\(/.test(hit.statement)) return false;
       return !(
         hit.statement.includes('.eq("organisation_id"') ||
@@ -204,11 +229,46 @@ describe("tenant isolation", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps the operator console to counts, behind a gate that fails closed", () => {
+    for (const key of Object.keys(SUPERADMIN_BY_DESIGN)) {
+      const path = key.split("::")[0];
+      const file = FILES.find((f) => f.path === path);
+      expect(file, `${path} no longer exists`).toBeDefined();
+
+      // Nothing identifying an employee may be selected. A count needs keys
+      // and dates; a name in this module would be a register read with a
+      // different label on it.
+      for (const column of IDENTIFYING_COLUMNS) {
+        expect(
+          file!.source.includes(`"${column}"`) ||
+            new RegExp(`select\\([^)]*\\b${column}\\b`).test(file!.source),
+          `${path} selects "${column}", which is an employee detail, not a count`,
+        ).toBe(false);
+      }
+    }
+
+    // The page is the only caller, and it must refuse before it reads.
+    const page = FILES.find((f) => f.path === "app/admin/page.tsx");
+    expect(page, "app/admin/page.tsx no longer exists").toBeDefined();
+    expect(page!.source).toContain("requireSuperadmin()");
+    expect(page!.source.indexOf("requireSuperadmin()")).toBeLessThan(
+      page!.source.indexOf("getAdminMetrics()"),
+    );
+
+    // And the gate itself must fail closed on a blank or missing variable,
+    // which is how the last four configuration faults in this codebase began.
+    const gate = FILES.find((f) => f.path === "lib/admin/superadmin.ts");
+    expect(gate, "lib/admin/superadmin.ts no longer exists").toBeDefined();
+    expect(gate!.source).toContain("CERTLY_SUPERADMIN_EMAILS");
+    expect(gate!.source).toContain("if (allowed.length === 0) return false;");
+  });
+
   it("keeps the cross-workspace allowlist honest", () => {
     const live = new Set(HITS.map((hit) => hit.key));
-    const stale = Object.keys(CROSS_ORG_BY_DESIGN).filter(
-      (key) => !live.has(key),
-    );
+    const stale = [
+      ...Object.keys(CROSS_ORG_BY_DESIGN),
+      ...Object.keys(SUPERADMIN_BY_DESIGN),
+    ].filter((key) => !live.has(key));
     expect(stale).toEqual([]);
   });
 
@@ -219,7 +279,9 @@ describe("tenant isolation", () => {
       for (const table of KEYED_BY_OWN_ID) {
         for (const at of occurrences(file.source, `.from("${table}")`)) {
           const fnName = enclosingFunction(spans, at)?.name ?? "<module scope>";
-          if (ALL_WORKSPACES_BY_DESIGN[`${file.path}::${fnName}`]) continue;
+          const ownKey = `${file.path}::${fnName}`;
+          if (ALL_WORKSPACES_BY_DESIGN[ownKey]) continue;
+          if (SUPERADMIN_BY_DESIGN[ownKey]) continue;
           const statement = statementAt(file.source, at);
           const narrowed =
             statement.includes('.eq("id"') ||
