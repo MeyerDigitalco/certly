@@ -16,6 +16,10 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
+function article(role: string): string {
+  return /^[aeiou]/i.test(role) ? "an" : "a";
+}
+
 const ROLE_DESCRIPTION: Record<string, string> = {
   owner: "full control, including billing and closing the workspace",
   admin: "adding and changing employees and certificates",
@@ -79,7 +83,8 @@ export default async function InvitePage({
                 You have been invited to {orgName}
               </h1>
               <p className="mt-2 text-sm text-[var(--brand-slate)]">
-                You have been invited as a {invite.role}, which means{" "}
+                You have been invited as {article(invite.role)} {invite.role}, which
+                means{" "}
                 {ROLE_DESCRIPTION[invite.role] ?? "access to this workspace"}.
                 Choose a password to create your Certly account, then you will
                 be asked whether you want to join.
@@ -108,7 +113,8 @@ export default async function InvitePage({
             <>
               <h1 className="text-2xl font-black">Join {orgName}?</h1>
               <p className="mt-2 text-sm text-[var(--brand-slate)]">
-                You have been invited as a {invite.role}, which means{" "}
+                You have been invited as {article(invite.role)} {invite.role}, which
+                means{" "}
                 {ROLE_DESCRIPTION[invite.role] ?? "access to this workspace"}.
               </p>
               <p className="mt-3 text-sm text-[var(--brand-slate)]">

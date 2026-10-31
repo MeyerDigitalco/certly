@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { safeRedirectPath } from "@/lib/safe-redirect";
+import { publicOrigin } from "@/lib/origin";
+import { buildPasswordChanged } from "@/lib/email/security";
+import { sendEmail } from "@/lib/email/send";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,6 +40,27 @@ export async function setPassword(
     data: { has_password: true },
   });
   if (error) return { ok: false, error: error.message };
+
+  // Told, not asked. The password has already changed by this point, so a
+  // sending failure must not be reported as a failure to change it, or the
+  // person tries again and ends up not knowing which password is live.
+  if (user.email) {
+    const origin = await publicOrigin();
+    const notice = buildPasswordChanged({
+      email: user.email,
+      origin,
+      when: new Date(),
+    });
+    const outcome = await sendEmail({
+      to: user.email,
+      subject: notice.subject,
+      html: notice.html,
+      text: notice.text,
+    });
+    if (outcome.status === "failed") {
+      console.error(`password.notice failed: ${outcome.reason}`);
+    }
+  }
 
   redirect(safeRedirectPath(next));
 }
